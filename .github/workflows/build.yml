@@ -38,6 +38,8 @@ jobs:
         run: |
           set -o pipefail
           {
+            echo "Browser extension against a simulated Chrome"
+            node Scripts/extension_test.js Extension/chrome/background.js
             python3 Scripts/smoke_test.py build/Panda.app
             python3 Scripts/smoke_test.py build/Panda.app --launch
           } 2>&1 | tee ci/smoke.log
@@ -57,6 +59,7 @@ jobs:
           mkdir -p ci/crashes
           cp ~/Library/Logs/DiagnosticReports/Panda* ci/crashes/ 2>/dev/null || true
           cp ~/Library/Logs/DiagnosticReports/panda-host* ci/crashes/ 2>/dev/null || true
+          cp build/Panda.dmg ci/Panda.dmg 2>/dev/null || true
           ls -la ci ci/previews ci/crashes 2>/dev/null || true
 
       - name: Publish build output branch

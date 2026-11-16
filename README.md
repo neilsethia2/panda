@@ -76,7 +76,8 @@ PANDA_NOTARY_PROFILE=your-notarytool-profile \
 ```
 
 Every push to `main` is built on GitHub's Mac runners, which also run `Scripts/smoke_test.py`
-against the real binary and render every screen to an image.
+against the real binary, run `Scripts/extension_test.js` (the extension against a simulated
+Chrome) and render every screen to an image.
 
 ## Limits worth knowing
 
