@@ -1,0 +1,123 @@
+Browser extension against a simulated Chrome
+  ok   instagram tab still open while panda is on his way 
+  ok   instagram tab closed 
+  ok   closed event reported to the app 
+  ok   geometry sent with the check 
+  ok   normal video left open 
+  ok   short reached by in-page navigation closed 
+  ok   counted once, not twice 
+  ok   short that arrived mid-check closed 
+  ok   tab kept when the user already left Instagram 
+  ok   only tab closed and replaced with a new tab 
+  ok   old instagram tab closed when switched to 
+  ok   nothing closed with both toggles off 
+  ok   ordinary sites are never sent to the app 
+  ok   site from the blocklist closed 
+  ok   counted as a custom site 
+  ok   site not on the list left alone 
+  ok   site added while the browser is running closed 
+  ok   site removed from the list is allowed again 
+
+All extension checks passed.
+Host protocol and rules
+  ok   instagram home                     https://www.instagram.com/                       -> instagram
+  ok   instagram bare domain              https://instagram.com/somebody                   -> instagram
+  ok   instagram reels                    https://www.instagram.com/reels/abc/             -> instagram
+  ok   instagram direct link              https://www.instagram.com/p/XYZ/?igsh=1          -> instagram
+  ok   look-alike domain                  https://notinstagram.com/                        -> None
+  ok   instagram as subdomain trick       https://instagram.com.example.org/               -> None
+  ok   normal video                       https://www.youtube.com/watch?v=dQw4w9WgXcQ      -> None
+  ok   youtube home                       https://www.youtube.com/                         -> None
+  ok   playlist                           https://www.youtube.com/playlist?list=PL123      -> None
+  ok   short                              https://www.youtube.com/shorts/abcdEFGH          -> shorts
+  ok   short on mobile site               https://m.youtube.com/shorts/abcdEFGH            -> shorts
+  ok   shorts tab                         https://www.youtube.com/shorts                   -> shorts
+  ok   channel called shortsomething      https://www.youtube.com/shortsighted             -> None
+  ok   other site with /shorts/           https://example.com/shorts/1                     -> None
+  ok   search for the word                https://www.google.com/search?q=instagram.com    -> None
+  ok   master off, instagram              https://www.instagram.com/                       -> None
+  ok   master off, short                  https://www.youtube.com/shorts/x                 -> None
+  ok   instagram off                      https://www.instagram.com/                       -> None
+  ok   instagram off, short still         https://www.youtube.com/shorts/x                 -> shorts
+  ok   shorts off                         https://www.youtube.com/shorts/x                 -> None
+  ok   shorts off, instagram still        https://www.instagram.com/                       -> instagram
+  ok   youtube off                        https://www.youtube.com/shorts/x                 -> None
+  ok   normal videos not allowed          https://www.youtube.com/watch?v=1                -> youtube
+  ok   not allowed + youtube off          https://www.youtube.com/watch?v=1                -> None
+  ok   blocklist: whole site              https://www.reddit.com/r/all/                    -> custom
+  ok   blocklist: subdomain               https://old.reddit.com/                          -> custom
+  ok   blocklist: look-alike              https://notreddit.com/                           -> None
+  ok   blocklist switched off             https://www.reddit.com/                          -> None
+  ok   blocklist, master off              https://www.reddit.com/                          -> None
+  ok   blocklist: one channel             https://www.youtube.com/@somechannel/videos      -> custom
+  ok   blocklist: similar channel         https://www.youtube.com/@somechannelx            -> None
+  ok   blocklist: other videos fine       https://www.youtube.com/watch?v=1                -> None
+  ok   blocklist: one video               https://www.youtube.com/watch?v=abc123&t=10      -> custom
+  ok   blocklist: a different video       https://www.youtube.com/watch?v=zzz              -> None
+  ok   blocklist beats a toggle           https://www.instagram.com/                       -> custom
+  ok   blocklist change pushed to the extension
+  ok   close delay passed through
+  ok   nothing blocked while the app is quit
+
+All checks passed.
+Host protocol and rules
+  ok   instagram home                     https://www.instagram.com/                       -> instagram
+  ok   instagram bare domain              https://instagram.com/somebody                   -> instagram
+  ok   instagram reels                    https://www.instagram.com/reels/abc/             -> instagram
+  ok   instagram direct link              https://www.instagram.com/p/XYZ/?igsh=1          -> instagram
+  ok   look-alike domain                  https://notinstagram.com/                        -> None
+  ok   instagram as subdomain trick       https://instagram.com.example.org/               -> None
+  ok   normal video                       https://www.youtube.com/watch?v=dQw4w9WgXcQ      -> None
+  ok   youtube home                       https://www.youtube.com/                         -> None
+  ok   playlist                           https://www.youtube.com/playlist?list=PL123      -> None
+  ok   short                              https://www.youtube.com/shorts/abcdEFGH          -> shorts
+  ok   short on mobile site               https://m.youtube.com/shorts/abcdEFGH            -> shorts
+  ok   shorts tab                         https://www.youtube.com/shorts                   -> shorts
+  ok   channel called shortsomething      https://www.youtube.com/shortsighted             -> None
+  ok   other site with /shorts/           https://example.com/shorts/1                     -> None
+  ok   search for the word                https://www.google.com/search?q=instagram.com    -> None
+  ok   master off, instagram              https://www.instagram.com/                       -> None
+  ok   master off, short                  https://www.youtube.com/shorts/x                 -> None
+  ok   instagram off                      https://www.instagram.com/                       -> None
+  ok   instagram off, short still         https://www.youtube.com/shorts/x                 -> shorts
+  ok   shorts off                         https://www.youtube.com/shorts/x                 -> None
+  ok   shorts off, instagram still        https://www.instagram.com/                       -> instagram
+  ok   youtube off                        https://www.youtube.com/shorts/x                 -> None
+  ok   normal videos not allowed          https://www.youtube.com/watch?v=1                -> youtube
+  ok   not allowed + youtube off          https://www.youtube.com/watch?v=1                -> None
+  ok   blocklist: whole site              https://www.reddit.com/r/all/                    -> custom
+  ok   blocklist: subdomain               https://old.reddit.com/                          -> custom
+  ok   blocklist: look-alike              https://notreddit.com/                           -> None
+  ok   blocklist switched off             https://www.reddit.com/                          -> None
+  ok   blocklist, master off              https://www.reddit.com/                          -> None
+  ok   blocklist: one channel             https://www.youtube.com/@somechannel/videos      -> custom
+  ok   blocklist: similar channel         https://www.youtube.com/@somechannelx            -> None
+  ok   blocklist: other videos fine       https://www.youtube.com/watch?v=1                -> None
+  ok   blocklist: one video               https://www.youtube.com/watch?v=abc123&t=10      -> custom
+  ok   blocklist: a different video       https://www.youtube.com/watch?v=zzz              -> None
+  ok   blocklist beats a toggle           https://www.instagram.com/                       -> custom
+  ok   blocklist change pushed to the extension
+  ok   close delay passed through
+Launching the app
+  ok   app is running after 8 seconds
+  ok   host detects the running app
+  ok   app counted an Instagram tab: {'custom': 0, 'instagram': 1, 'protectedSeconds': 0, 'shorts': 0, 'youtube': 0}
+  ok   app counted a Short closed as the browser quit: {'custom': 1, 'instagram': 1, 'protectedSeconds': 0, 'shorts': 1, 'youtube': 0}
+  --- debug.log
+  | 2026-11-16 10:23:57 +0000 [Panda] coordinator ready, listening for com.neilsethia.panda.event
+  | 2026-11-16 10:24:06 +0000 [Panda] received notification, object is __NSCFString
+  | 2026-11-16 10:24:06 +0000 [panda-host] posted caught instagram
+  | 2026-11-16 10:24:06 +0000 [Panda] received notification, object is __NSCFString
+  | 2026-11-16 10:24:06 +0000 [panda-host] posted caught instagram
+  | 2026-11-16 10:24:06 +0000 [Panda] received notification, object is __NSCFString
+  | 2026-11-16 10:24:06 +0000 [panda-host] posted closed instagram
+  | 2026-11-16 10:24:06 +0000 [Panda] counting instagram
+  | 2026-11-16 10:24:11 +0000 [Panda] received notification, object is __NSCFString
+  | 2026-11-16 10:24:11 +0000 [Panda] counting shorts
+  | 2026-11-16 10:24:11 +0000 [panda-host] posted closed shorts
+  | 2026-11-16 10:24:11 +0000 [Panda] received notification, object is __NSCFString
+  | 2026-11-16 10:24:11 +0000 [Panda] counting custom
+  | 2026-11-16 10:24:11 +0000 [panda-host] posted closed custom
+  ok   app survived the catch animation
+
+All checks passed.

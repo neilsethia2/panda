@@ -1,0 +1,21 @@
+==> Cleaning
+==> SDK: /Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk
+swift-driver version: 1.120.5 Apple Swift version 6.1.2 (swiftlang-6.1.2.1.2 clang-1700.0.13.5)
+Target: arm64-apple-macosx15.0
+==> Compiling Panda (arm64)
+==> Compiling PandaHost (arm64)
+==> Compiling Panda (x86_64)
+==> Compiling PandaHost (x86_64)
+==> Assembling Panda.app
+==> Icon
+==> Browser extension
+==> Signing
+/Users/runner/work/panda/panda/build/Panda.app/Contents/MacOS/panda-host: replacing existing signature
+/Users/runner/work/panda/panda/build/Panda.app: replacing existing signature
+    signature OK
+==> Disk image
+
+Done.
+  App:        /Users/runner/work/panda/panda/build/Panda.app
+  Disk image: /Users/runner/work/panda/panda/build/Panda.dmg
+Architectures in the fat file: /Users/runner/work/panda/panda/build/Panda.app/Contents/MacOS/Panda are: x86_64 arm64 
