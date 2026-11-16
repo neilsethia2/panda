@@ -1,19 +1,52 @@
 import AppKit
 import SwiftUI
 
+/// The panes of the main window, listed in the sidebar like System Settings.
 enum MainTab: String, CaseIterable, Identifiable {
-    case dashboard = "Dashboard"
-    case settings = "Settings"
-    case setup = "Setup"
+    case dashboard
+    case blocking
+    case closer
+    case general
+    case setup
 
     var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .dashboard: return "Dashboard"
+        case .blocking: return "Blocking"
+        case .closer: return "Tab Closer"
+        case .general: return "General"
+        case .setup: return "Browser Setup"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .dashboard: return "chart.bar.fill"
+        case .blocking: return "hand.raised.fill"
+        case .closer: return "pawprint.fill"
+        case .general: return "gearshape.fill"
+        case .setup: return "puzzlepiece.extension.fill"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .dashboard: return Theme.accent
+        case .blocking: return Theme.red
+        case .closer: return Theme.orange
+        case .general: return Theme.grey
+        case .setup: return Theme.green
+        }
+    }
 }
 
 final class MainWindowModel: ObservableObject {
     @Published var tab: MainTab = .dashboard
 }
 
-/// The one regular window Panda has: dashboard, settings and setup, behind three tabs.
+/// The one regular window Panda has: a sidebar on the left, the chosen pane on the right.
 final class MainWindowController: NSObject, NSWindowDelegate {
     let model = MainWindowModel()
     private var window: NSWindow?
@@ -27,8 +60,9 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     func show(tab: MainTab) {
         model.tab = tab
         if window == nil {
+            let size = NSSize(width: MainLayout<EmptyView>.width, height: MainLayout<EmptyView>.height)
             let w = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 760, height: 640),
+                contentRect: NSRect(origin: .zero, size: size),
                 styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
                 backing: .buffered,
                 defer: false
@@ -39,7 +73,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
             w.isMovableByWindowBackground = true
             w.isReleasedWhenClosed = false
             w.contentViewController = NSHostingController(rootView: makeRoot(model))
-            w.setContentSize(NSSize(width: 760, height: 640))
+            w.setContentSize(size)
             w.center()
             w.delegate = self
             window = w
@@ -61,73 +95,177 @@ struct MainView: View {
     @EnvironmentObject var settings: AppSettings
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                PandaView(mood: settings.protectionActive ? .happy : .sleeping, size: 40)
-                Text("Panda")
-                    .font(Theme.title(20))
-                    .foregroundColor(Theme.ink)
-                Spacer()
-                TabBar(selection: $model.tab)
-            }
-            .padding(.horizontal, 28)
-            .padding(.top, 30)
-            .padding(.bottom, 14)
-
+        MainLayout(selection: $model.tab) {
             ScrollView {
-                Group {
-                    switch model.tab {
-                    case .dashboard: DashboardContent()
-                    case .settings: SettingsContent()
-                    case .setup: SetupContent()
-                    }
-                }
-                .padding(.horizontal, 28)
-                .padding(.bottom, 28)
-                .padding(.top, 6)
+                PaneContent(tab: model.tab)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 4)
+                    .padding(.bottom, 24)
             }
         }
-        .frame(width: 760, height: 640)
-        .background(SurfaceBackground())
+        .frame(width: MainLayout<EmptyView>.width, height: MainLayout<EmptyView>.height)
+        .ignoresSafeArea()
         .preferredColorScheme(Theme.dark ? .dark : .light)
         .id(settings.themeToken)
     }
 }
 
-/// Segmented control drawn in SwiftUI.
-struct TabBar: View {
+/// Sidebar, pane title and a slot for the pane itself.
+struct MainLayout<Content: View>: View {
     @Binding var selection: MainTab
+    let content: Content
+
+    static var width: CGFloat { 860 }
+    static var height: CGFloat { 620 }
+    static var sidebarWidth: CGFloat { 216 }
+
+    init(selection: Binding<MainTab>, @ViewBuilder content: () -> Content) {
+        self._selection = selection
+        self.content = content()
+    }
 
     var body: some View {
-        HStack(spacing: 2) {
-            ForEach(MainTab.allCases) { tab in
-                Text(tab.rawValue)
-                    .font(Theme.body(12.5, weight: .medium))
-                    .foregroundColor(selection == tab ? Theme.surface : Theme.ink)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6.5)
-                    .background(Capsule().fill(selection == tab ? Theme.ink : Color.clear))
-                    .contentShape(Capsule())
-                    .onTapGesture {
-                        withAnimation(.easeInOut(duration: 0.15)) { selection = tab }
-                    }
+        HStack(spacing: 0) {
+            Sidebar(selection: $selection)
+                .frame(width: MainLayout.sidebarWidth)
+            Rectangle()
+                .fill(Color.black.opacity(Theme.dark ? 0.5 : 0.10))
+                .frame(width: 1)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(selection.title)
+                    .font(Theme.title(20))
+                    .foregroundColor(Theme.ink)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 20)
+                    .padding(.bottom, 12)
+                content
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(Theme.surface)
         }
-        .padding(3)
-        .background(Capsule().fill(Theme.fill))
     }
 }
 
+struct PaneContent: View {
+    let tab: MainTab
+
+    var body: some View {
+        switch tab {
+        case .dashboard: DashboardContent()
+        case .blocking: SettingsContent(pane: .blocking)
+        case .closer: SettingsContent(pane: .closer)
+        case .general: SettingsContent(pane: .general)
+        case .setup: SetupContent()
+        }
+    }
+}
+
+/// The left-hand list, in the style of System Settings: an identity row on top, then one
+/// row per pane with a coloured icon tile.
+struct Sidebar: View {
+    @Binding var selection: MainTab
+    @EnvironmentObject var settings: AppSettings
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Room for the window's close and minimise buttons.
+            Color.clear.frame(height: 46)
+
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle().fill(Theme.card)
+                    PandaView(mood: settings.protectionActive ? .happy : .sleeping, size: 34)
+                        .offset(y: 1)
+                }
+                .frame(width: 44, height: 44)
+                .overlay(Circle().stroke(Color.black.opacity(0.06), lineWidth: 0.5))
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Panda")
+                        .font(Theme.body(14, weight: .semibold))
+                        .foregroundColor(Theme.ink)
+                    Text(settings.protectionActive ? "Protection is on" : "Protection is off")
+                        .font(Theme.body(11.5))
+                        .foregroundColor(Theme.muted)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 14)
+
+            VStack(spacing: 2) {
+                ForEach(MainTab.allCases) { tab in
+                    SidebarRow(tab: tab, selected: tab == selection)
+                        .onTapGesture { selection = tab }
+                }
+            }
+            .padding(.horizontal, 10)
+
+            Spacer(minLength: 12)
+
+            Toggle(isOn: $settings.master) {
+                Text("Protection")
+                    .font(Theme.body(13))
+                    .foregroundColor(Theme.ink)
+            }
+            .toggleStyle(PandaToggleStyle())
+            .padding(.horizontal, 18)
+            .padding(.bottom, 16)
+        }
+        .frame(maxHeight: .infinity)
+        .background(sidebarBackground)
+    }
+
+    @ViewBuilder private var sidebarBackground: some View {
+        if PreviewRenderer.rendering {
+            Theme.sidebarFallback
+        } else {
+            SidebarMaterial()
+        }
+    }
+}
+
+struct SidebarRow: View {
+    let tab: MainTab
+    let selected: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 5.5, style: .continuous)
+                    .fill(tab.tint)
+                Image(systemName: tab.symbol)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+            .frame(width: 22, height: 22)
+
+            Text(tab.title)
+                .font(Theme.body(13))
+                .foregroundColor(selected ? Color.white : Theme.ink)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 7)
+        .frame(height: 30)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(selected ? Theme.accent : Color.clear)
+        )
+        .contentShape(Rectangle())
+    }
+}
+
+/// Heading above a group box.
 struct SectionTitle: View {
     let text: String
 
     var body: some View {
-        Text(text.uppercased())
-            .tracking(1.4)
-            .font(Theme.label(10.5))
-            .foregroundColor(Theme.muted)
+        Text(text)
+            .font(Theme.body(13, weight: .semibold))
+            .foregroundColor(Theme.ink)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, 4)
+            .padding(.leading, 6)
+            .padding(.top, 4)
     }
 }
 
@@ -140,7 +278,7 @@ struct DashboardContent: View {
     private var headline: (PandaMood, String, String) {
         let today = stats.today
         if !settings.protectionActive {
-            return (.sleeping, "Panda is off duty", "Turn protection on from the menu bar when you want to focus.")
+            return (.sleeping, "Panda is off duty", "Turn protection on when you want to focus.")
         }
         if today.total == 0 {
             return (.celebrating, "A clean day so far", "Nothing closed yet today. Panda has had nothing to do.")
@@ -155,13 +293,13 @@ struct DashboardContent: View {
         let today = stats.today
         let headline = self.headline
 
-        return VStack(spacing: 16) {
-            Card(padding: 18) {
-                HStack(spacing: 16) {
-                    PandaView(mood: headline.0, size: 88)
-                    VStack(alignment: .leading, spacing: 4) {
+        return VStack(spacing: 12) {
+            Card(padding: 16) {
+                HStack(spacing: 14) {
+                    PandaView(mood: headline.0, size: 72)
+                    VStack(alignment: .leading, spacing: 3) {
                         Text(headline.1)
-                            .font(Theme.title(21))
+                            .font(Theme.title(18))
                             .foregroundColor(Theme.ink)
                         Text(headline.2)
                             .font(Theme.body(13))
@@ -174,77 +312,135 @@ struct DashboardContent: View {
 
             SectionTitle(text: "Today")
             HStack(spacing: 10) {
-                StatTile(value: "\(today.instagram)", label: "Instagram attempts blocked")
-                StatTile(value: "\(today.shorts + today.youtube)", label: "YouTube Shorts blocked")
-                StatTile(value: "\(today.custom)", label: "From your own blocklist")
-                StatTile(value: "\(today.total)", label: "Distractions prevented")
+                StatTile(symbol: "camera.fill", tint: Theme.chart1, label: "Instagram", value: "\(today.instagram)", unit: "blocked")
+                StatTile(symbol: "play.rectangle.fill", tint: Theme.chart2, label: "YouTube Shorts", value: "\(today.shorts + today.youtube)", unit: "blocked")
+                StatTile(symbol: "list.bullet", tint: Theme.chart3, label: "Your blocklist", value: "\(today.custom)", unit: "blocked")
+            }
+            HStack(spacing: 10) {
+                StatTile(symbol: "shield.fill", tint: Theme.green, label: "Distractions prevented", value: "\(today.total)", unit: "today")
                 TimelineView(.periodic(from: Date(), by: 30)) { context in
                     StatTile(
-                        value: DurationText.short(stats.protectedSecondsToday(now: context.date)),
-                        label: "Time protected"
+                        symbol: "clock.fill", tint: Theme.grey, label: "Time protected",
+                        value: DurationText.short(stats.protectedSecondsToday(now: context.date)), unit: "today"
                     )
                 }
             }
 
-            SectionTitle(text: "This week")
-            Card(padding: 18) {
-                VStack(alignment: .leading, spacing: 14) {
+            SectionTitle(text: "Last 7 days")
+            Card(padding: 16) {
+                VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("\(stats.weekTotal) blocked in the last 7 days")
-                                .font(Theme.body(15, weight: .semibold))
-                                .foregroundColor(Theme.ink)
-                            Text("\(stats.weekInstagram) Instagram  ·  \(stats.weekShorts) YouTube  ·  \(stats.weekCustom) your list  ·  \(DurationText.short(stats.protectedSecondsThisWeek())) protected")
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Daily average")
                                 .font(Theme.body(12))
                                 .foregroundColor(Theme.muted)
+                            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                                Text(averageText)
+                                    .font(Theme.number(26))
+                                    .foregroundColor(Theme.ink)
+                                Text("blocked a day")
+                                    .font(Theme.body(12))
+                                    .foregroundColor(Theme.muted)
+                            }
                         }
                         Spacer()
-                        HStack(spacing: 12) {
-                            LegendDot(color: Theme.ink, text: "Instagram")
-                            LegendDot(color: Theme.series2, text: "YouTube")
-                            LegendDot(color: Theme.series3, text: "Your list")
+                        VStack(alignment: .trailing, spacing: 1) {
+                            Text("\(stats.weekTotal) in total")
+                                .font(Theme.body(12, weight: .medium))
+                                .foregroundColor(Theme.ink)
+                            Text("\(DurationText.short(stats.protectedSecondsThisWeek())) protected")
+                                .font(Theme.body(12))
+                                .foregroundColor(Theme.muted)
                         }
                     }
                     WeekChart(days: stats.lastSevenDays)
                         .frame(height: 150)
+                    Divider().overlay(Theme.line)
+                    HStack(spacing: 16) {
+                        LegendDot(color: Theme.chart1, text: "Instagram  \(stats.weekInstagram)")
+                        LegendDot(color: Theme.chart2, text: "YouTube  \(stats.weekShorts)")
+                        LegendDot(color: Theme.chart3, text: "Your list  \(stats.weekCustom)")
+                        Spacer(minLength: 0)
+                    }
                 }
             }
 
             SectionTitle(text: "All time")
-            HStack(spacing: 12) {
-                StatTile(value: "\(stats.allTimeTotal)", label: "Total distractions prevented")
-                StatTile(value: DurationText.short(stats.protectedSecondsAllTime()), label: "Total time with protection on")
+            Card(padding: 0) {
+                VStack(spacing: 0) {
+                    ValueRow(title: "Distractions prevented", value: "\(stats.allTimeTotal)")
+                    Divider().overlay(Theme.line).padding(.leading, 14)
+                    ValueRow(title: "Time with protection on", value: DurationText.short(stats.protectedSecondsAllTime()))
+                }
             }
 
             Text("Everything on this page is stored on this Mac only.")
                 .font(Theme.body(11.5))
                 .foregroundColor(Theme.muted)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 6)
+        }
+    }
+
+    private var averageText: String {
+        let average = Double(stats.weekTotal) / 7
+        if average == average.rounded() { return "\(Int(average))" }
+        return String(format: "%.1f", average)
+    }
+}
+
+/// A summary tile: coloured symbol and caption on top, the figure underneath.
+struct StatTile: View {
+    let symbol: String
+    let tint: Color
+    let label: String
+    let value: String
+    let unit: String
+
+    var body: some View {
+        Card(padding: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 5) {
+                    Image(systemName: symbol)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(tint)
+                    Text(label)
+                        .font(Theme.body(12, weight: .semibold))
+                        .foregroundColor(tint)
+                        .lineLimit(1)
+                }
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(value)
+                        .font(Theme.number(26))
+                        .foregroundColor(Theme.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Text(unit)
+                        .font(Theme.body(12))
+                        .foregroundColor(Theme.muted)
+                }
+            }
         }
     }
 }
 
-struct StatTile: View {
+/// A plain list row: title on the left, value on the right.
+struct ValueRow: View {
+    let title: String
     let value: String
-    let label: String
 
     var body: some View {
-        Card(padding: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(value)
-                    .font(Theme.number(26))
-                    .foregroundColor(Theme.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                Text(label)
-                    .font(Theme.body(11.5))
-                    .foregroundColor(Theme.muted)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(minHeight: 28, alignment: .topLeading)
-            }
+        HStack {
+            Text(title)
+                .font(Theme.body(13))
+                .foregroundColor(Theme.ink)
+            Spacer(minLength: 8)
+            Text(value)
+                .font(Theme.body(13))
+                .foregroundColor(Theme.muted)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 }
 
@@ -254,72 +450,102 @@ struct LegendDot: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            RoundedRectangle(cornerRadius: 3, style: .continuous)
+            Circle()
                 .fill(color)
-                .frame(width: 10, height: 10)
+                .frame(width: 8, height: 8)
             Text(text)
-                .font(Theme.body(11.5))
+                .font(Theme.body(12))
                 .foregroundColor(Theme.muted)
         }
     }
 }
 
-/// Seven stacked bars, one per day. Plain SwiftUI shapes.
+/// Seven stacked bars with a dashed line at the daily average, as in Screen Time.
 struct WeekChart: View {
     let days: [DayEntry]
 
     var body: some View {
         let peak = max(1, days.map { $0.stats.total }.max() ?? 1)
+        let total = days.reduce(0) { $0 + $1.stats.total }
+        let average = Double(total) / Double(max(1, days.count))
 
         return GeometryReader { geo in
             let labelHeight: CGFloat = 20
-            let valueHeight: CGFloat = 18
-            let barArea = max(10, geo.size.height - labelHeight - valueHeight)
+            let topRoom: CGFloat = 12
+            let barArea = max(10, geo.size.height - labelHeight - topRoom)
+            let baseline = geo.size.height - labelHeight
+            let averageY = baseline - barArea * CGFloat(average) / CGFloat(peak)
 
-            HStack(alignment: .bottom, spacing: 14) {
-                ForEach(days) { day in
-                    let instagramHeight = barArea * CGFloat(day.stats.instagram) / CGFloat(peak)
-                    let youtubeHeight = barArea * CGFloat(day.stats.shorts + day.stats.youtube) / CGFloat(peak)
-                    let customHeight = barArea * CGFloat(day.stats.custom) / CGFloat(peak)
+            ZStack(alignment: .topLeading) {
+                // Baseline
+                Rectangle()
+                    .fill(Theme.line)
+                    .frame(height: 1)
+                    .offset(y: baseline)
 
-                    VStack(spacing: 4) {
-                        Spacer(minLength: 0)
-                        Text(day.stats.total > 0 ? "\(day.stats.total)" : " ")
-                            .font(Theme.body(11, weight: .medium))
-                            .foregroundColor(Theme.ink)
-                            .frame(height: valueHeight - 4)
-                        if day.stats.total == 0 {
-                            Capsule()
-                                .fill(Theme.fill)
-                                .frame(height: 5)
-                        } else {
-                            VStack(spacing: 2) {
+                HStack(alignment: .bottom, spacing: 0) {
+                    ForEach(days) { day in
+                        let instagramHeight = barArea * CGFloat(day.stats.instagram) / CGFloat(peak)
+                        let youtubeHeight = barArea * CGFloat(day.stats.shorts + day.stats.youtube) / CGFloat(peak)
+                        let customHeight = barArea * CGFloat(day.stats.custom) / CGFloat(peak)
+
+                        VStack(spacing: 0) {
+                            Spacer(minLength: 0)
+                            VStack(spacing: 0) {
                                 if customHeight > 0 {
-                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                        .fill(Theme.series3)
-                                        .frame(height: max(4, customHeight - 1))
+                                    Rectangle().fill(Theme.chart3).frame(height: customHeight)
                                 }
                                 if youtubeHeight > 0 {
-                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                        .fill(Theme.series2)
-                                        .frame(height: max(4, youtubeHeight - 1))
+                                    Rectangle().fill(Theme.chart2).frame(height: youtubeHeight)
                                 }
                                 if instagramHeight > 0 {
-                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                        .fill(Theme.ink)
-                                        .frame(height: max(4, instagramHeight - 1))
+                                    Rectangle().fill(Theme.chart1).frame(height: instagramHeight)
                                 }
                             }
+                            .frame(width: 26)
+                            .clipShape(TopRounded(radius: 4))
+                            Text(day.isToday ? "Today" : day.label)
+                                .font(Theme.body(11, weight: day.isToday ? .semibold : .regular))
+                                .foregroundColor(day.isToday ? Theme.ink : Theme.muted)
+                                .frame(height: labelHeight)
                         }
-                        Text(day.isToday ? "Today" : day.label)
-                            .font(Theme.body(11, weight: day.isToday ? .bold : .regular))
-                            .foregroundColor(day.isToday ? Theme.ink : Theme.muted)
-                            .frame(height: labelHeight - 4)
+                        .frame(maxWidth: .infinity)
                     }
-                    .frame(maxWidth: .infinity)
+                }
+
+                if total > 0 {
+                    // Dashed average line with its label at the right-hand end
+                    Path { path in
+                        path.move(to: CGPoint(x: 0, y: averageY))
+                        path.addLine(to: CGPoint(x: geo.size.width - 30, y: averageY))
+                    }
+                    .stroke(Theme.green, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                    Text("avg")
+                        .font(Theme.body(10.5, weight: .medium))
+                        .foregroundColor(Theme.green)
+                        .frame(width: 26, alignment: .trailing)
+                        .offset(x: geo.size.width - 26, y: averageY - 7)
                 }
             }
         }
+    }
+}
+
+/// A rectangle with only its top corners rounded, for the top of a bar.
+struct TopRounded: Shape {
+    var radius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let r = min(radius, rect.width / 2, rect.height)
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX, y: rect.minY + r))
+        p.addQuadCurve(to: CGPoint(x: rect.minX + r, y: rect.minY), control: CGPoint(x: rect.minX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX - r, y: rect.minY))
+        p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + r), control: CGPoint(x: rect.maxX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        p.closeSubpath()
+        return p
     }
 }
 
@@ -331,24 +557,36 @@ struct SettingsContent: View {
     @EnvironmentObject var actions: AppActions
     @EnvironmentObject var characters: CharacterStore
 
+    enum Pane { case blocking, closer, general }
+    var pane: Pane
+
+    init(pane: Pane = .blocking) {
+        self.pane = pane
+    }
+
     @State private var launchAtLogin = LoginItem.isEnabled
     @State private var confirmReset = false
 
     var body: some View {
-        VStack(spacing: 16) {
-            protectionSection
-            youtubeSection
-            SectionTitle(text: "Your blocklist")
-            BlocklistCard()
-            closerSection
-            characterSection
-            appearanceSection
-            generalSection
-            dataSection
-            HStack {
-                Spacer()
-                Button("Quit Panda completely") { actions.quit() }
-                    .buttonStyle(SoftButtonStyle())
+        VStack(spacing: 12) {
+            switch pane {
+            case .blocking:
+                protectionSection
+                youtubeSection
+                SectionTitle(text: "Your blocklist")
+                BlocklistCard()
+            case .closer:
+                closerSection
+                characterSection
+            case .general:
+                appearanceSection
+                generalSection
+                dataSection
+                HStack {
+                    Spacer()
+                    Button("Quit Panda") { actions.quit() }
+                        .buttonStyle(SoftButtonStyle())
+                }
             }
         }
         .onAppear { launchAtLogin = LoginItem.isEnabled }
@@ -360,7 +598,7 @@ struct SettingsContent: View {
             VStack(spacing: 13) {
                 SettingToggle(title: "Master protection",
                               detail: "When this is off, nothing is blocked at all.",
-                              isOn: $settings.master, large: true)
+                              isOn: $settings.master)
                 Divider().overlay(Theme.line)
                 SettingToggle(title: "Instagram protection",
                               detail: "Closes any instagram.com tab the moment it opens.",
@@ -600,7 +838,7 @@ struct OptionRow<Control: View>: View {
         VStack(alignment: .leading, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(Theme.body(13.5, weight: .medium))
+                    .font(Theme.body(13))
                     .foregroundColor(Theme.ink)
                 if let detail = detail {
                     Text(detail)
@@ -663,7 +901,7 @@ struct BlocklistCard: View {
                         ForEach(settings.customSites, id: \.self) { entry in
                             HStack(spacing: 10) {
                                 Text(entry)
-                                    .font(Theme.label(12))
+                                    .font(Theme.body(13))
                                     .foregroundColor(Theme.ink)
                                     .lineLimit(1)
                                     .truncationMode(.middle)
@@ -733,7 +971,7 @@ struct SettingToggle: View {
         Toggle(isOn: $isOn) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(Theme.body(13.5, weight: .medium))
+                    .font(Theme.body(13))
                     .foregroundColor(Theme.ink)
                 Text(detail)
                     .font(Theme.body(11.5))

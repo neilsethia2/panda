@@ -31,17 +31,18 @@ enum PreviewRenderer {
                 .environment(\.colorScheme, Theme.dark ? .dark : .light)
         }
 
-        func page(_ title: String, _ content: AnyView) -> AnyView {
+        // A whole window: sidebar plus one pane, as tall as the pane needs.
+        func window(_ tab: MainTab) -> AnyView {
             AnyView(
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(title)
-                        .font(Theme.title(20))
-                        .foregroundColor(Theme.ink)
-                    content
+                MainLayout(selection: .constant(tab)) {
+                    PaneContent(tab: tab)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 4)
+                        .padding(.bottom, 24)
                 }
-                .padding(28)
-                .frame(width: 760)
-                .background(SurfaceBackground())
+                .frame(width: MainLayout<EmptyView>.width)
+                .frame(minHeight: MainLayout<EmptyView>.height)
+                .fixedSize(horizontal: false, vertical: true)
             )
         }
 
@@ -53,17 +54,19 @@ enum PreviewRenderer {
         settings.onChange = nil
         settings.customSites = ["reddit.com", "x.com", "youtube.com/@somechannel"]
 
+        settings.characterStyle = .panda
+        settings.companionMode = .onCatch
         for dark in [false, true] {
             Theme.dark = dark
             let suffix = dark ? "-dark" : ""
             save(themed(PopoverView()), to: folder.appendingPathComponent("popover\(suffix).png"))
-            save(themed(page("Dashboard", AnyView(DashboardContent()))), to: folder.appendingPathComponent("dashboard\(suffix).png"))
-            settings.characterStyle = .panda
-            settings.companionMode = .onCatch
-            save(themed(page("Settings", AnyView(SettingsContent()))), to: folder.appendingPathComponent("settings\(suffix).png"))
+            save(themed(window(.dashboard)), to: folder.appendingPathComponent("window-dashboard\(suffix).png"))
+            save(themed(window(.blocking)), to: folder.appendingPathComponent("window-blocking\(suffix).png"))
         }
         Theme.dark = false
-        save(themed(page("Setup", AnyView(SetupContent()))), to: folder.appendingPathComponent("setup.png"))
+        save(themed(window(.closer)), to: folder.appendingPathComponent("window-closer.png"))
+        save(themed(window(.general)), to: folder.appendingPathComponent("window-general.png"))
+        save(themed(window(.setup)), to: folder.appendingPathComponent("window-setup.png"))
 
         // Every mood, side by side
         let moods = HStack(spacing: 18) {

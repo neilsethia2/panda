@@ -65,10 +65,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupStatus.accessProvider = { [weak coordinator] in coordinator?.watcher.access ?? [:] }
 
         actions.openDashboard = { [weak self] in self?.open(.dashboard) }
-        actions.openSettings = { [weak self] in self?.open(.settings) }
+        actions.openSettings = { [weak self] in self?.open(.blocking) }
         actions.openSetup = { [weak self] in self?.open(.setup) }
         actions.closePopover = { [weak statusController] in statusController?.closePopover() }
-        actions.openBlocklist = { [weak self] in self?.open(.settings) }
+        actions.openBlocklist = { [weak self] in self?.open(.blocking) }
         actions.resetCompanion = { [weak companion] in companion?.resetHome() }
         actions.demoCompanion = { [weak companion] in companion?.demo() }
         actions.retryBrowserAccess = { [weak coordinator] in coordinator?.watcher.retryAccess() }

@@ -178,7 +178,7 @@ struct SiteLabel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 1.5) {
             Text(title)
-                .font(Theme.body(13.5, weight: .medium))
+                .font(Theme.body(13))
                 .foregroundColor(Theme.ink)
             Text(detail)
                 .font(Theme.body(11.5))
