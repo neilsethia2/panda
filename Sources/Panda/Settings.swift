@@ -39,12 +39,13 @@ enum EntrySide: String, CaseIterable, Identifiable {
 }
 
 enum CompanionSize: String, CaseIterable, Identifiable {
-    case small, medium, large
+    case tiny, small, medium, large
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
+        case .tiny: return "Tiny"
         case .small: return "Small"
         case .medium: return "Medium"
         case .large: return "Large"
@@ -53,6 +54,7 @@ enum CompanionSize: String, CaseIterable, Identifiable {
 
     var points: Double {
         switch self {
+        case .tiny: return 34
         case .small: return 52
         case .medium: return 72
         case .large: return 100
@@ -62,6 +64,7 @@ enum CompanionSize: String, CaseIterable, Identifiable {
 
 enum CharacterStyle: String, CaseIterable, Identifiable {
     case panda
+    case ghost
     case custom
 
     var id: String { rawValue }

@@ -29,6 +29,8 @@ struct PandaView: View {
 /// only for as long as he is moving, so it costs nothing at rest.
 struct CharacterView: View {
     var image: NSImage?
+    /// Which built-in character to draw when there is no picture.
+    var style: CharacterStyle = .panda
     var mood: PandaMood
     var size: CGFloat = 96
     var blink: Bool = false
@@ -58,7 +60,7 @@ struct CharacterView: View {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { pop = false }
             }
         }
-        .accessibilityLabel(Text(image == nil ? "Panda, \(mood.rawValue)" : "Your character"))
+        .accessibilityLabel(Text(image != nil ? "Your character" : (style == .ghost ? "Ghost, \(mood.rawValue)" : "Panda, \(mood.rawValue)")))
     }
 
     /// One frame. `phase` is the position in the run cycle in radians, or nil when standing.
@@ -85,6 +87,9 @@ struct CharacterView: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(width: size, height: size, alignment: .bottom)
                     .scaleEffect(x: 1 + squash, y: 1 - squash, anchor: .bottom)
+            } else if style == .ghost {
+                GhostCanvas(mood: mood, blink: blink, stride: phase)
+                    .frame(width: size, height: size)
             } else {
                 PandaCanvas(mood: mood, blink: blink, stride: phase)
                     .frame(width: size, height: size)
@@ -316,5 +321,161 @@ struct PandaCanvas: View {
         p.addQuadCurve(to: CGPoint(x: cx, y: cy - r), control: CGPoint(x: cx - inner, y: cy - inner))
         p.closeSubpath()
         return p
+    }
+}
+
+/// A second built-in character: a small ghost. Same moods and the same 100 x 100 drawing
+/// space as the panda. He floats instead of walking, so his run is a bob with a rippling hem.
+struct GhostCanvas: View {
+    var mood: PandaMood
+    var blink: Bool = false
+    /// Position in the run cycle in radians. Nil draws him hovering in place.
+    var stride: Double? = nil
+
+    var body: some View {
+        Canvas { ctx, canvasSize in
+            let scale = min(canvasSize.width, canvasSize.height) / 100
+            ctx.scaleBy(x: scale, y: scale)
+
+            let ink = GraphicsContext.Shading.color(Theme.pandaBlack)
+            let white = GraphicsContext.Shading.color(Theme.pandaWhite)
+            let outline: CGFloat = 2.4
+
+            let running = stride != nil
+            let phase = CGFloat(stride ?? 0)
+            let s = running ? sin(phase) : 0
+            let dy: CGFloat = running ? -4.5 * abs(s) : 0      // rises on every beat
+            let glance: CGFloat = running ? 2.2 : 0            // looks where he is going
+            let trail: CGFloat = running ? -3 : 0              // hem drags behind him
+
+            // Shadow on the ground beneath him
+            let shadowWidth: CGFloat = running ? 34 - 5 * abs(s) : 40
+            ctx.fill(PandaCanvas.ellipse(50, 96.5, shadowWidth, 5), with: .color(Color.black.opacity(0.13)))
+
+            // Little arms. Up for a cheer, otherwise they flap as he moves.
+            let cheer = mood == .celebrating
+            let flap: CGFloat = running ? 3 * s : 0
+            let leftArm = PandaCanvas.ellipse(15, (cheer ? 44 : 60) + dy + flap, 13, 10)
+            let rightArm = PandaCanvas.ellipse(85, ((cheer || mood == .proud) ? 44 : 60) + dy - flap, 13, 10)
+            for arm in [leftArm, rightArm] {
+                ctx.fill(arm, with: white)
+                ctx.stroke(arm, with: ink, lineWidth: outline)
+            }
+
+            // Body: a dome with a scalloped hem that ripples while he moves.
+            var body = Path()
+            body.move(to: CGPoint(x: 20, y: 84 + dy))
+            body.addLine(to: CGPoint(x: 20, y: 46 + dy))
+            body.addCurve(
+                to: CGPoint(x: 80, y: 46 + dy),
+                control1: CGPoint(x: 20, y: 2 + dy),
+                control2: CGPoint(x: 80, y: 2 + dy)
+            )
+            body.addLine(to: CGPoint(x: 80, y: 84 + dy))
+            let edges: [CGFloat] = [80, 65, 50, 35, 20]
+            for i in 0..<4 {
+                let ripple: CGFloat = running ? 3.5 * sin(phase * 2 + CGFloat(i) * 1.6) : 0
+                let mid = (edges[i] + edges[i + 1]) / 2 + trail
+                body.addQuadCurve(
+                    to: CGPoint(x: edges[i + 1], y: 84 + dy),
+                    control: CGPoint(x: mid, y: 97 + dy + ripple)
+                )
+            }
+            body.closeSubpath()
+            ctx.fill(body, with: white)
+            ctx.stroke(body, with: ink, style: StrokeStyle(lineWidth: outline, lineJoin: .round))
+
+            // Cheeks
+            if mood != .suspicious && mood != .shocked {
+                let cheek = GraphicsContext.Shading.color(Theme.pandaCheek.opacity(0.85))
+                ctx.fill(PandaCanvas.ellipse(29 + glance, 55 + dy, 10, 5.5), with: cheek)
+                ctx.fill(PandaCanvas.ellipse(71 + glance, 55 + dy, 10, 5.5), with: cheek)
+            }
+
+            // Eyes
+            let ex = glance
+            let ey = 42 + dy
+            let eyeStroke = StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
+            switch mood {
+            case .happy:
+                if blink {
+                    ctx.stroke(PandaCanvas.line(34 + ex, ey + 1, 43 + ex, ey + 1), with: ink, style: eyeStroke)
+                    ctx.stroke(PandaCanvas.line(57 + ex, ey + 1, 66 + ex, ey + 1), with: ink, style: eyeStroke)
+                } else {
+                    ctx.fill(PandaCanvas.ellipse(38.5 + ex, ey, 9.5, 13), with: ink)
+                    ctx.fill(PandaCanvas.ellipse(61.5 + ex, ey, 9.5, 13), with: ink)
+                    ctx.fill(PandaCanvas.ellipse(40 + ex, ey - 3, 3, 3), with: white)
+                    ctx.fill(PandaCanvas.ellipse(63 + ex, ey - 3, 3, 3), with: white)
+                }
+            case .suspicious:
+                ctx.stroke(PandaCanvas.line(32 + ex, ey - 2, 44 + ex, ey + 2), with: ink, style: eyeStroke)
+                ctx.stroke(PandaCanvas.line(68 + ex, ey - 2, 56 + ex, ey + 2), with: ink, style: eyeStroke)
+                ctx.fill(PandaCanvas.ellipse(40 + ex, ey + 5, 5, 5), with: ink)
+                ctx.fill(PandaCanvas.ellipse(60 + ex, ey + 5, 5, 5), with: ink)
+            case .shocked:
+                let leftEye = PandaCanvas.ellipse(38 + ex, ey, 13, 16)
+                let rightEye = PandaCanvas.ellipse(62 + ex, ey, 13, 16)
+                ctx.stroke(leftEye, with: ink, lineWidth: 2.4)
+                ctx.stroke(rightEye, with: ink, lineWidth: 2.4)
+                ctx.fill(PandaCanvas.ellipse(38 + ex, ey, 4.5, 4.5), with: ink)
+                ctx.fill(PandaCanvas.ellipse(62 + ex, ey, 4.5, 4.5), with: ink)
+            case .proud, .celebrating:
+                ctx.stroke(PandaCanvas.arc(33 + ex, ey + 3, 44 + ex, ey + 3, bend: -7), with: ink, style: eyeStroke)
+                ctx.stroke(PandaCanvas.arc(56 + ex, ey + 3, 67 + ex, ey + 3, bend: -7), with: ink, style: eyeStroke)
+            case .sleeping:
+                ctx.stroke(PandaCanvas.arc(33, ey, 44, ey, bend: 5), with: ink, style: eyeStroke)
+                ctx.stroke(PandaCanvas.arc(56, ey, 67, ey, bend: 5), with: ink, style: eyeStroke)
+            }
+
+            // Mouth
+            let mx = 50 + glance
+            let my = 58 + dy
+            let mouthStroke = StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round)
+            switch mood {
+            case .happy:
+                ctx.stroke(PandaCanvas.arc(mx - 5, my, mx + 5, my, bend: 4), with: ink, style: mouthStroke)
+            case .suspicious:
+                ctx.stroke(PandaCanvas.line(mx - 5, my + 2, mx + 5, my + 0.5), with: ink, style: mouthStroke)
+            case .shocked:
+                ctx.fill(PandaCanvas.ellipse(mx, my + 4, 7, 9), with: ink)
+            case .proud:
+                ctx.stroke(PandaCanvas.arc(mx - 7, my - 0.5, mx + 7, my - 0.5, bend: 6.5), with: ink, style: mouthStroke)
+            case .celebrating:
+                var mouth = Path()
+                mouth.move(to: CGPoint(x: mx - 7, y: my - 1))
+                mouth.addQuadCurve(to: CGPoint(x: mx + 7, y: my - 1), control: CGPoint(x: mx, y: my + 13))
+                mouth.closeSubpath()
+                ctx.fill(mouth, with: ink)
+            case .sleeping:
+                ctx.fill(PandaCanvas.ellipse(50, my + 2, 4, 4), with: ink)
+            }
+
+            // Little extras
+            switch mood {
+            case .sleeping:
+                ctx.draw(
+                    Text("z").font(.system(size: 11, weight: .heavy)).foregroundColor(Color(white: 0.5)),
+                    at: CGPoint(x: 86, y: 20)
+                )
+                ctx.draw(
+                    Text("z").font(.system(size: 15, weight: .heavy)).foregroundColor(Color(white: 0.42)),
+                    at: CGPoint(x: 93, y: 8)
+                )
+            case .celebrating:
+                let spark = GraphicsContext.Shading.color(Color(white: 0.62))
+                ctx.fill(PandaCanvas.sparkle(cx: 7, cy: 24, r: 5), with: spark)
+                ctx.fill(PandaCanvas.sparkle(cx: 94, cy: 22, r: 4.5), with: spark)
+            case .shocked, .suspicious:
+                let badge = PandaCanvas.ellipse(90, 14 + dy, 17, 17)
+                ctx.fill(badge, with: white)
+                ctx.stroke(badge, with: ink, lineWidth: 1.6)
+                ctx.draw(
+                    Text(mood == .shocked ? "!" : "?").font(.system(size: 12, weight: .black)).foregroundColor(Theme.pandaBlack),
+                    at: CGPoint(x: 90, y: 14 + dy)
+                )
+            default:
+                break
+            }
+        }
     }
 }

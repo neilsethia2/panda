@@ -16,6 +16,8 @@ final class CompanionModel: ObservableObject {
     /// The user's own picture, or nil for the panda.
     @Published var image: NSImage?
     @Published var flipImage = true
+    /// Which built-in character to draw when there is no picture.
+    @Published var style: CharacterStyle = .panda
 }
 
 struct SpeechBubble: View {
@@ -68,22 +70,32 @@ struct BubbleTail: Shape {
 struct CompanionView: View {
     @ObservedObject var model: CompanionModel
 
-    /// The window is a fixed transparent canvas. The character stands bottom-centre and the
-    /// speech bubble appears to one side of him.
-    static let panelSize = CGSize(width: 372, height: 150)
+    /// The window is a transparent canvas only a little taller than the character, so it
+    /// never has to poke above the top of the screen to reach a tab. The character stands
+    /// bottom-centre and the speech bubble appears to one side of him.
+    static let panelWidth: CGFloat = 372
+    /// Gap between the bottom of the window and the character's feet.
+    static let footPadding: CGFloat = 4
+
+    static func panelHeight(for size: CGFloat) -> CGFloat {
+        max(size * 1.32 + 10, 78)
+    }
 
     var body: some View {
         let size = model.size
+        let height = CompanionView.panelHeight(for: size)
         let bubbleOffset = size / 2 + 66
 
         return ZStack(alignment: .bottom) {
             if let text = model.bubble {
                 SpeechBubble(text: text, tailOnRight: model.bubbleOnLeft)
-                    .offset(x: model.bubbleOnLeft ? -bubbleOffset : bubbleOffset, y: -max(6, size * 0.32))
+                    .frame(height: height, alignment: .center)
+                    .offset(x: model.bubbleOnLeft ? -bubbleOffset : bubbleOffset)
                     .transition(.scale(scale: 0.6).combined(with: .opacity))
             }
             CharacterView(
                 image: model.image,
+                style: model.style,
                 mood: model.mood,
                 size: size,
                 blink: model.blink,
@@ -95,12 +107,18 @@ struct CompanionView: View {
             .animation(.easeInOut(duration: 0.9), value: model.breathe)
             .padding(.bottom, CompanionView.footPadding)
         }
-        .frame(width: CompanionView.panelSize.width, height: CompanionView.panelSize.height, alignment: .bottom)
+        .frame(width: CompanionView.panelWidth, height: height, alignment: .bottom)
         .animation(.spring(response: 0.32, dampingFraction: 0.7), value: model.bubble)
     }
+}
 
-    /// Gap between the bottom of the window and the character's feet.
-    static let footPadding: CGFloat = 4
+/// A panel macOS is not allowed to nudge. By default the system pushes windows down so
+/// they stay clear of the menu bar, which is exactly what made the character land below
+/// the tab bar instead of on it.
+final class FreePanel: NSPanel {
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        frameRect
+    }
 }
 
 /// Sits on top of the SwiftUI view and turns mouse input into "drag the panda" or "poke the panda".
@@ -156,7 +174,9 @@ final class CompanionController {
     private var entryUsed: EntrySide = .home
     private var runScreen = NSRect(x: 0, y: 0, width: 1440, height: 900)
 
-    private var panelSize: NSSize { NSSize(width: CompanionView.panelSize.width, height: CompanionView.panelSize.height) }
+    private var panelSize: NSSize {
+        NSSize(width: CompanionView.panelWidth, height: CompanionView.panelHeight(for: model.size))
+    }
     private var characterSize: CGFloat { model.size }
     /// Transparent space on each side of the character inside the window.
     private var sideInset: CGFloat { (panelSize.width - characterSize) / 2 }
@@ -165,8 +185,9 @@ final class CompanionController {
         self.settings = settings
         self.characters = characters
 
-        let size = NSSize(width: CompanionView.panelSize.width, height: CompanionView.panelSize.height)
-        panel = NSPanel(
+        let startSize = CGFloat(settings.companionSize.points)
+        let size = NSSize(width: CompanionView.panelWidth, height: CompanionView.panelHeight(for: startSize))
+        panel = FreePanel(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
@@ -212,8 +233,15 @@ final class CompanionController {
     private func applyLook() {
         let size = CGFloat(settings.companionSize.points)
         if model.size != size { model.size = size }
+        // The window is only as tall as the character needs.
+        if abs(panel.frame.height - panelSize.height) > 0.5 {
+            panel.setFrame(NSRect(origin: panel.frame.origin, size: panelSize), display: true)
+        }
         let image = settings.characterStyle == .custom ? characters.image : nil
         if model.image !== image { model.image = image }
+        // No picture chosen yet: fall back to the panda instead of showing nothing.
+        let style: CharacterStyle = settings.characterStyle == .ghost ? .ghost : .panda
+        if model.style != style { model.style = style }
         if model.flipImage != settings.flipWhenWalkingLeft { model.flipImage = settings.flipWhenWalkingLeft }
     }
 
@@ -352,8 +380,8 @@ final class CompanionController {
         if let anchor = anchor, settings.walkToTab {
             let frame = screenFrame(containing: anchor)
             runScreen = frame
-            // Feet land in the tab strip, body pokes up above it.
-            target = NSPoint(x: anchor.x - panelSize.width / 2, y: anchor.y - 20 - CompanionView.footPadding)
+            // Centred on the tab itself, top to bottom.
+            target = NSPoint(x: anchor.x - panelSize.width / 2, y: anchor.y - characterSize / 2 - CompanionView.footPadding)
             // Keep his head on the screen when the browser window is flush with the top.
             target.y = min(target.y, frame.maxY - characterSize - CompanionView.footPadding - 2)
             target.y = max(target.y, frame.minY)

@@ -92,6 +92,31 @@ enum PreviewRenderer {
         .background(Color(white: 0.16))
         save(themed(run), to: folder.appendingPathComponent("run-cycle.png"))
 
+        // The second built-in character: every mood, then his run
+        let ghostMoods = HStack(spacing: 18) {
+            ForEach(PandaMood.allCases, id: \.self) { mood in
+                VStack(spacing: 8) {
+                    CharacterView(image: nil, style: .ghost, mood: mood, size: 120)
+                    Text(mood.rawValue)
+                        .font(Theme.label(10.5))
+                        .foregroundColor(Theme.muted)
+                }
+            }
+        }
+        .padding(28)
+        .background(SurfaceBackground())
+        save(themed(ghostMoods), to: folder.appendingPathComponent("ghost-moods.png"))
+
+        let ghostRun = HStack(spacing: 6) {
+            ForEach(phases, id: \.self) { phase in
+                CharacterView(image: nil, style: .ghost, mood: .suspicious, size: 96).figure(phase: phase)
+                    .frame(width: 112, height: 120, alignment: .bottom)
+            }
+        }
+        .padding(20)
+        .background(Color(white: 0.16))
+        save(themed(ghostRun), to: folder.appendingPathComponent("run-cycle-ghost.png"))
+
         // A custom picture given the same run. The test picture is a blob on a plain
         // background, pushed through the real import pipeline (cut-out, trim, scale).
         if let test = testPicture() {
@@ -119,6 +144,21 @@ enum PreviewRenderer {
             .padding(20)
             .background(Color(white: 0.55))
         save(themed(companion), to: folder.appendingPathComponent("companion.png"))
+
+        // The four sizes next to each other, on a mock tab bar, to check the proportions
+        let sizes = HStack(alignment: .center, spacing: 28) {
+            ForEach(CompanionSize.allCases) { option in
+                VStack(spacing: 6) {
+                    CharacterView(image: nil, mood: .proud, size: CGFloat(option.points))
+                    Text(option.title)
+                        .font(Theme.label(10.5))
+                        .foregroundColor(Color(white: 0.75))
+                }
+            }
+        }
+        .padding(20)
+        .background(Color(white: 0.2))
+        save(themed(sizes), to: folder.appendingPathComponent("sizes.png"))
 
         // Menu bar icons, enlarged
         for (name, awake) in [("menubar-on", true), ("menubar-off", false)] {

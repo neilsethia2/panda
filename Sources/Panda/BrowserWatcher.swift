@@ -36,8 +36,20 @@ enum TabGeometry {
                 x = left + width / 2
                 yFromTop = top + 28
             } else {
-                let tabWidth = width / Double(count)
-                x = left + (Double(index) + 0.5) * tabWidth
+                // With a few tabs Safari gives each the same width. With many, the tab in
+                // front stays wide and the rest shrink to their icons. Panda always closes
+                // the tab in front, so work out where that wide one sits.
+                let inset = 8.0
+                let usable = max(100, width - inset * 2)
+                let equal = usable / Double(count)
+                let frontWidth = 190.0
+                if equal >= frontWidth {
+                    x = left + inset + (Double(index) + 0.5) * equal
+                } else {
+                    let others = max(40, (usable - frontWidth) / Double(count - 1))
+                    x = min(left + width - inset - frontWidth / 2,
+                            left + inset + Double(index) * others + frontWidth / 2)
+                }
                 yFromTop = top + 66
             }
         }

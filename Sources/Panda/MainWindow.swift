@@ -454,11 +454,21 @@ struct SettingsContent: View {
         Card {
             VStack(alignment: .leading, spacing: 13) {
                 OptionRow(title: "Who closes your tabs",
-                          detail: "Use the panda, or any picture of your own. Your picture is cut out and given the same run: it hops, rocks and leans as it moves.") {
-                    ChoiceChips(
-                        options: [(CharacterStyle.panda, "Panda"), (CharacterStyle.custom, "My own picture")],
-                        selection: $settings.characterStyle
-                    )
+                          detail: "Pick a built-in character, or use any picture of your own. Your picture is cut out and given the same run: it hops, rocks and leans as it moves.") {
+                    HStack(spacing: 14) {
+                        ChoiceChips(
+                            options: [
+                                (CharacterStyle.panda, "Panda"),
+                                (CharacterStyle.ghost, "Ghost"),
+                                (CharacterStyle.custom, "My own picture"),
+                            ],
+                            selection: $settings.characterStyle
+                        )
+                        Spacer(minLength: 0)
+                        if settings.characterStyle != .custom {
+                            CharacterView(image: nil, style: settings.characterStyle, mood: .happy, size: 46)
+                        }
+                    }
                 }
 
                 if settings.characterStyle == .custom {
