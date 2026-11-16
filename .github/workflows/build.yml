@@ -1,0 +1,105 @@
+name: Build Panda
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          mkdir -p ci
+          { sw_vers; xcodebuild -version; xcrun swiftc --version; } 2>&1 | tee ci/toolchain.log
+
+      - name: Build app and disk image
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./Scripts/build.sh 2>&1 | tee ci/build.log
+
+      - name: Check the browser bridge and the running app
+        id: smoke
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          {
+            python3 Scripts/smoke_test.py build/Panda.app
+            python3 Scripts/smoke_test.py build/Panda.app --launch
+          } 2>&1 | tee ci/smoke.log
+
+      - name: Render screens
+        id: previews
+        if: steps.build.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          mkdir -p ci/previews
+          build/Panda.app/Contents/MacOS/Panda --render-previews "$PWD/ci/previews" 2>&1 | tee ci/previews.log
+
+      - name: Collect crash reports
+        if: always()
+        run: |
+          mkdir -p ci/crashes
+          cp ~/Library/Logs/DiagnosticReports/Panda* ci/crashes/ 2>/dev/null || true
+          cp ~/Library/Logs/DiagnosticReports/panda-host* ci/crashes/ 2>/dev/null || true
+          ls -la ci ci/previews ci/crashes 2>/dev/null || true
+
+      - name: Publish build output branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          OUT="$RUNNER_TEMP/ci-output"
+          rm -rf "$OUT" && mkdir -p "$OUT"
+          cp -R ci/. "$OUT/"
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "run=$GITHUB_RUN_ID"
+            echo "build=${{ steps.build.outcome }}"
+            echo "smoke=${{ steps.smoke.outcome }}"
+            echo "previews=${{ steps.previews.outcome }}"
+          } > "$OUT/STATUS"
+          cd "$OUT"
+          git init -q -b ci-output
+          git config user.name "panda-ci"
+          git config user.email "panda-ci@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Build output for $GITHUB_SHA"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-output
+
+      - name: Upload disk image
+        if: steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Panda
+          path: build/Panda.dmg
+
+      - name: Publish download
+        if: steps.build.outcome == 'success' && steps.smoke.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest build/Panda.dmg \
+            --target "$GITHUB_SHA" \
+            --title "Panda (latest build)" \
+            --notes "Download Panda.dmg, open it, and drag Panda into Applications. The first time you open it, macOS will ask you to approve it in System Settings > Privacy & Security > Open Anyway."
+
+      - name: Fail the run if anything above failed
+        if: steps.build.outcome != 'success' || steps.smoke.outcome != 'success'
+        run: exit 1

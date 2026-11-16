@@ -1,0 +1,19 @@
+PANDA
+Your anti-doomscrolling companion
+
+INSTALL
+1. Drag Panda into the Applications folder shown next to it.
+2. Open Panda from Applications.
+
+IF macOS SAYS IT CANNOT VERIFY PANDA
+This copy is not notarised by Apple, so the first launch needs one approval:
+1. Click Done on the warning.
+2. Open System Settings > Privacy & Security.
+3. Scroll down to the line about Panda and click Open Anyway.
+You only do this once.
+
+AFTER THAT
+Panda appears in the menu bar at the top right of your screen, and a setup
+screen walks you through the three steps to connect Chrome and Safari.
+
+Everything Panda records stays on this Mac.

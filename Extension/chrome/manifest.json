@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Panda – Anti-Doomscrolling Companion",
+  "short_name": "Panda",
+  "version": "1.0.0",
+  "description": "Lets the Panda Mac app close Instagram and YouTube Shorts tabs. Only looks at tab addresses, never at page content.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAp+Rkc1iO9E0wKAZTBxdtgFXebLkaUjWSjq3vB867xeO26iKwLVQ/QtCVOh1OPouYCaYJsR20ny6sjehEa90p4RV6pc6MRZ69Q+Q/PA0O7ZRt0YV5l67TxVFzjlaM0rLOtU3ZAJfQblViJyHQryDgPTTONRVwirFMcCUQOPAlIzzKcSAGIFmNI+mW1dc24n16tclB1VuWePL6KXTWm9BtX5rYxGQTSxZyFwj6rFC6uwG+6ss1p3wla0+0WyPPs+mKVvPnbs8+EiNKC2oBmJk4VxLcoL5A0/bKOpAys20REa+31+coOGpu7L9CI/pcu/Px/4m48ILTjBBC36w4M8M7QQIDAQAB",
+  "minimum_chrome_version": "110",
+  "permissions": ["tabs", "webNavigation", "nativeMessaging"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Panda",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

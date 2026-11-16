@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Panda</title>
+<style>
+  html, body { margin: 0; padding: 0; }
+  body {
+    width: 250px;
+    padding: 18px 18px 16px;
+    background: #FBF6EC;
+    color: #1F1D1A;
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "Helvetica Neue", sans-serif;
+    text-align: center;
+  }
+  img { width: 56px; height: 56px; display: block; margin: 0 auto 8px; }
+  h1 { font-size: 15px; margin: 0 0 4px; font-weight: 700; }
+  p { margin: 0; color: #6f6a60; }
+  .pill {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 12px;
+    background: #F3E7CF;
+    color: #1F1D1A;
+  }
+  .pill.ok { background: #1F1D1A; color: #FBF6EC; }
+</style>
+</head>
+<body>
+  <img src="icons/icon128.png" alt="">
+  <h1>Panda</h1>
+  <p id="detail">Checking…</p>
+  <span class="pill" id="pill">…</span>
+  <script src="popup.js"></script>
+</body>
+</html>
