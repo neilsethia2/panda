@@ -644,11 +644,11 @@ struct SettingsContent: View {
     @ViewBuilder private var closerSection: some View {
         let hidden = settings.companionMode == .menuBarOnly
 
-        SectionTitle(text: "The tab closer")
+        SectionTitle(text: "Behaviour")
         Card {
             VStack(alignment: .leading, spacing: 13) {
                 OptionRow(title: "When he is on screen",
-                          detail: "Only when he closes something: he runs in, shuts the tab and leaves, like in the video. Always: he also rests in a corner between catches.") {
+                          detail: "Only when he closes something: he runs in, shuts the tab and leaves. Always: he also rests in a corner between catches.") {
                     ChoiceChips(options: CompanionMode.allCases.map { ($0, $0.title) }, selection: $settings.companionMode)
                 }
                 Divider().overlay(Theme.line)

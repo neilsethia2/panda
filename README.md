@@ -52,7 +52,7 @@ address of the front tab.
 - `instagram.com` and its subdomains: closed when Instagram protection is on.
 - `youtube.com/shorts/...`: closed when YouTube protection and Block Shorts are on.
 - Every other YouTube address: left alone, unless you turn off "Allow normal YouTube videos".
-- Your blocklist (Settings > Your blocklist): paste a link and choose "Block the whole site" or
+- Your blocklist (Blocking > Your blocklist): paste a link and choose "Block the whole site" or
   "Only this exact link". A whole-site entry such as `reddit.com` also covers its subdomains.
   A link entry such as `youtube.com/@somechannel` covers that page and everything under it.
 - Master protection off: nothing is closed.
@@ -60,7 +60,7 @@ address of the front tab.
 ## The tab closer
 
 When something is blocked, the panda runs along the tab bar to the tab, closes it and leaves.
-Settings > The tab closer controls:
+The Tab Closer pane controls:
 
 - whether he only appears when he closes something (default), also rests in a corner, or never shows
 - which side he runs in from: left, right, nearest side, top, or his resting spot
@@ -68,11 +68,13 @@ Settings > The tab closer controls:
   bubble appears
 - a Preview button that plays one run with the current settings
 
-Settings > Character lets you swap the panda for any picture. On macOS 14 and later the subject
+The Character section of the same pane lets you swap the panda for any picture. On macOS 14 and later the subject
 is cut out of its background automatically. The picture gets a procedural run (hop, rock, lean
 and squash); it is not redrawn frame by frame.
 
-The interface is black, white and grey with a light and a dark variant (Settings > Appearance).
+The main window follows Apple's own Mac apps: a sidebar like System Settings (Dashboard, Blocking,
+Tab Closer, General, Browser Setup), grouped panels and system colours, in light and dark
+(General > Appearance).
 
 ## Privacy
 

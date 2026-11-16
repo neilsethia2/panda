@@ -20,7 +20,7 @@ final class StatusItemController: NSObject {
     private let popover = NSPopover()
     private let settings: AppSettings
 
-    static let popoverSize = NSSize(width: 320, height: 562)
+    static let popoverSize = NSSize(width: 320, height: 548)
 
     init(settings: AppSettings, stats: StatsStore, actions: AppActions) {
         self.settings = settings

@@ -45,8 +45,7 @@ struct PopoverView: View {
                     .foregroundColor(Theme.ink)
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(settings.protectionActive ? Theme.ink : Color.clear)
-                        .overlay(Circle().stroke(Theme.ink, lineWidth: 1.2))
+                        .fill(settings.protectionActive ? Theme.green : Theme.grey)
                         .frame(width: 7, height: 7)
                     Text(settings.protectionActive ? "Protection ON" : "Protection OFF")
                         .font(Theme.body(13, weight: .medium))
