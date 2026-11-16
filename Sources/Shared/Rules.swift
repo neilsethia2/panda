@@ -123,3 +123,25 @@ enum Rules {
         }
     }
 }
+
+/// Off unless the app is started with --verbose (or the host with PANDA_VERBOSE=1).
+/// Writes plain lines to debug.log next to the statistics file. Never records addresses.
+enum DebugLog {
+    static let enabled: Bool = CommandLine.arguments.contains("--verbose")
+        || ProcessInfo.processInfo.environment["PANDA_VERBOSE"] == "1"
+
+    static func write(_ text: String) {
+        guard enabled else { return }
+        PandaPaths.ensureSupportDir()
+        let line = "\(Date()) [\(ProcessInfo.processInfo.processName)] \(text)\n"
+        guard let data = line.data(using: .utf8) else { return }
+        let url = PandaPaths.supportDir.appendingPathComponent("debug.log")
+        if let handle = try? FileHandle(forWritingTo: url) {
+            handle.seekToEndOfFile()
+            handle.write(data)
+            try? handle.close()
+        } else {
+            try? data.write(to: url)
+        }
+    }
+}

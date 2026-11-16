@@ -54,6 +54,7 @@ final class BlockCoordinator: NSObject, ObservableObject {
         workspace.addObserver(self, selector: #selector(didWake), name: NSWorkspace.didWakeNotification, object: nil)
 
         companion.onPoke = { [weak self] in self?.poked() }
+        DebugLog.write("coordinator ready, listening for \(PandaPaths.eventNotification)")
     }
 
     deinit {
@@ -73,6 +74,7 @@ final class BlockCoordinator: NSObject, ObservableObject {
     // MARK: Events from the browser extension
 
     @objc private func hostEvent(_ note: Notification) {
+        DebugLog.write("received notification, object is \(note.object.map { String(describing: type(of: $0)) } ?? "nil")")
         guard let json = note.object as? String,
               let data = json.data(using: .utf8),
               let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -112,6 +114,7 @@ final class BlockCoordinator: NSObject, ObservableObject {
     }
 
     private func closed(kind: BlockKind, browser: String) {
+        DebugLog.write("counting \(kind.rawValue)")
         stats.record(kind)
         let line = Lines.line(for: kind)
         companion.confirmCatch(message: line)

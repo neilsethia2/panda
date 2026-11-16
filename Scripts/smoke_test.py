@@ -29,8 +29,9 @@ STATS = os.path.join(SUPPORT, "stats.json")
 failures = []
 
 
-def talk(messages, assume_running=True):
+def talk(messages, assume_running=True, linger=0.0):
     env = dict(os.environ)
+    env["PANDA_VERBOSE"] = "1"
     if assume_running:
         env["PANDA_ASSUME_APP_RUNNING"] = "1"
     else:
@@ -48,6 +49,8 @@ def talk(messages, assume_running=True):
             raise RuntimeError("host closed the pipe early")
         (length,) = struct.unpack("<I", header)
         replies.append(json.loads(proc.stdout.read(length)))
+    if linger:
+        time.sleep(linger)   # Chrome keeps the host alive for as long as the browser runs
     proc.stdin.close()
     proc.wait(timeout=10)
     return replies
@@ -144,7 +147,10 @@ def main():
             print("Launching the app")
             if os.path.exists(STATS):
                 os.remove(STATS)
-            subprocess.run(["open", "-n", APP], check=True)
+            debug_log = os.path.join(SUPPORT, "debug.log")
+            if os.path.exists(debug_log):
+                os.remove(debug_log)
+            subprocess.run(["open", "-n", APP, "--args", "--verbose"], check=True)
             time.sleep(8)
             alive = subprocess.run(["pgrep", "-x", "Panda"], capture_output=True).returncode == 0
             print(f"  {'ok  ' if alive else 'FAIL'} app is running after 8 seconds")
@@ -158,22 +164,40 @@ def main():
                     failures.append(f"host did not see the running app: {reply}")
                 print(f"  {'ok  ' if ok else 'FAIL'} host detects the running app")
 
+                def counted_today():
+                    today = datetime.date.today().isoformat()
+                    if not os.path.exists(STATS):
+                        return {}
+                    with open(STATS) as handle:
+                        return json.load(handle).get(today, {})
+
+                # The normal case: the browser keeps the host process alive.
                 talk([
                     {"type": "check", "id": 1, "url": "https://www.instagram.com/", "left": 0, "top": 25,
                      "width": 1200, "index": 1, "count": 3, "pinned": 0},
                     {"type": "closed", "kind": "instagram"},
-                    {"type": "closed", "kind": "shorts"},
-                ], assume_running=False)
-                time.sleep(4)
-                today = datetime.date.today().isoformat()
-                counted = {}
-                if os.path.exists(STATS):
-                    with open(STATS) as handle:
-                        counted = json.load(handle).get(today, {})
-                ok = counted.get("instagram") == 1 and counted.get("shorts") == 1
+                ], assume_running=False, linger=1.5)
+                time.sleep(3)
+                counted = counted_today()
+                ok = counted.get("instagram") == 1
                 if not ok:
-                    failures.append(f"app did not count the blocked tabs: {counted}")
-                print(f"  {'ok  ' if ok else 'FAIL'} app counted the blocked tabs: {counted}")
+                    failures.append(f"app did not count a tab closed by a live host: {counted}")
+                print(f"  {'ok  ' if ok else 'FAIL'} app counted an Instagram tab: {counted}")
+
+                # The awkward case: the browser quits the instant after closing the tab.
+                talk([{"type": "closed", "kind": "shorts"}], assume_running=False)
+                time.sleep(3)
+                counted = counted_today()
+                ok = counted.get("shorts") == 1
+                if not ok:
+                    failures.append(f"app did not count a tab closed just before the host exited: {counted}")
+                print(f"  {'ok  ' if ok else 'FAIL'} app counted a Short closed as the browser quit: {counted}")
+
+                if os.path.exists(debug_log):
+                    print("  --- debug.log")
+                    with open(debug_log) as handle:
+                        for line in handle:
+                            print("  | " + line.rstrip())
 
                 still = subprocess.run(["pgrep", "-x", "Panda"], capture_output=True).returncode == 0
                 print(f"  {'ok  ' if still else 'FAIL'} app survived the catch animation")

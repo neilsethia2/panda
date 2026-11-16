@@ -55,6 +55,7 @@ func notifyApp(_ payload: [String: Any]) {
         userInfo: nil,
         deliverImmediately: true
     )
+    DebugLog.write("posted \(payload["event"] as? String ?? "?") \(payload["kind"] as? String ?? "?")")
 }
 
 // Which browser launched us. The extension works in any Chromium browser, so we look it up.
@@ -137,4 +138,7 @@ while let message = readMessage() {
     }
 }
 
+// The browser closed the pipe (it quit, or the extension was reloaded). Give the last
+// notification a moment to leave this process before exiting.
+Thread.sleep(forTimeInterval: 0.3)
 try? FileManager.default.removeItem(at: presenceFile)
