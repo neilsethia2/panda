@@ -26,7 +26,7 @@ struct SpeechBubble: View {
     var body: some View {
         Text(text)
             .font(Theme.body(11.5, weight: .semibold))
-            .foregroundColor(Theme.ink)
+            .foregroundColor(Theme.pandaBlack)
             .multilineTextAlignment(.center)
             .lineLimit(4)
             .fixedSize(horizontal: false, vertical: true)
@@ -40,12 +40,12 @@ struct SpeechBubble: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 13, style: .continuous)
-                    .stroke(Theme.ink, lineWidth: 1.6)
+                    .stroke(Theme.pandaBlack, lineWidth: 1.6)
             )
             .overlay(
                 BubbleTail()
                     .fill(Color.white)
-                    .overlay(BubbleTail().stroke(Theme.ink, style: StrokeStyle(lineWidth: 1.6, lineJoin: .round)))
+                    .overlay(BubbleTail().stroke(Theme.pandaBlack, style: StrokeStyle(lineWidth: 1.6, lineJoin: .round)))
                     .frame(width: 9, height: 12)
                     .scaleEffect(x: tailOnRight ? 1 : -1, y: 1)
                     .offset(x: tailOnRight ? 7.5 : -7.5),
