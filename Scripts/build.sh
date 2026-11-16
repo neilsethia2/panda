@@ -50,7 +50,7 @@ compile() {
 APP_BINARIES=()
 HOST_BINARIES=()
 for arch in $ARCHS; do
-  compile "$arch" Panda "$OBJ/Panda-$arch" Sources/Shared/*.swift Sources/Panda/*.swift
+  compile "$arch" Panda "$OBJ/Panda-$arch" -parse-as-library Sources/Shared/*.swift Sources/Panda/*.swift
   compile "$arch" PandaHost "$OBJ/panda-host-$arch" Sources/Shared/*.swift Sources/Host/*.swift
   APP_BINARIES+=("$OBJ/Panda-$arch")
   HOST_BINARIES+=("$OBJ/panda-host-$arch")
