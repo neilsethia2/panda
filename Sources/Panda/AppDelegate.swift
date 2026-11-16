@@ -33,6 +33,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ExtensionBridge.install()
         Notifier.shared.start()
 
+        Theme.dark = resolvedDark()
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(systemThemeChanged),
+            name: Notification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil
+        )
+
         let companion = CompanionController(settings: settings)
         let coordinator = BlockCoordinator(settings: settings, stats: stats, companion: companion)
         let statusController = StatusItemController(settings: settings, stats: stats, actions: actions)
@@ -45,6 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     .environmentObject(actions)
                     .environmentObject(setupStatus)
                     .environmentObject(Notifier.shared)
+                    .environmentObject(CharacterStore.shared)
             )
         }
 
@@ -59,7 +68,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         actions.openSettings = { [weak self] in self?.open(.settings) }
         actions.openSetup = { [weak self] in self?.open(.setup) }
         actions.closePopover = { [weak statusController] in statusController?.closePopover() }
+        actions.openBlocklist = { [weak self] in self?.open(.settings) }
         actions.resetCompanion = { [weak companion] in companion?.resetHome() }
+        actions.demoCompanion = { [weak companion] in companion?.demo() }
         actions.retryBrowserAccess = { [weak coordinator] in coordinator?.watcher.retryAccess() }
         actions.quit = { NSApp.terminate(nil) }
 
@@ -67,7 +78,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             statusController?.refreshIcon()
             setupStatus?.refresh()
         }
-        settings.onChange = { [weak coordinator] in coordinator?.settingsChanged() }
+        settings.onChange = { [weak self, weak coordinator] in
+            self?.applyTheme()
+            coordinator?.settingsChanged()
+        }
         coordinator.settingsChanged()
 
         if !settings.hasOnboarded {
@@ -78,6 +92,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                 Notifier.shared.requestPermission()
             }
+        }
+    }
+
+    // MARK: Light and dark
+
+    private func resolvedDark() -> Bool {
+        switch settings.appearance {
+        case .light: return false
+        case .dark: return true
+        case .system: return UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
+        }
+    }
+
+    private func applyTheme() {
+        let dark = resolvedDark()
+        guard dark != Theme.dark else { return }
+        Theme.dark = dark
+        statusController?.applyTheme()
+        mainWindow?.applyTheme()
+        settings.themeToken += 1
+    }
+
+    @objc private func systemThemeChanged() {
+        // The system setting lands a moment after the notification.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            self?.applyTheme()
         }
     }
 

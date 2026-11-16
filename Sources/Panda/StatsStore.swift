@@ -5,19 +5,21 @@ struct DayStats: Codable, Equatable {
     var instagram: Int = 0
     var shorts: Int = 0
     var youtube: Int = 0
+    var custom: Int = 0
     var protectedSeconds: Double = 0
 
-    var total: Int { instagram + shorts + youtube }
+    var total: Int { instagram + shorts + youtube + custom }
 
     init() {}
 
-    enum CodingKeys: String, CodingKey { case instagram, shorts, youtube, protectedSeconds }
+    enum CodingKeys: String, CodingKey { case instagram, shorts, youtube, custom, protectedSeconds }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         instagram = try c.decodeIfPresent(Int.self, forKey: .instagram) ?? 0
         shorts = try c.decodeIfPresent(Int.self, forKey: .shorts) ?? 0
         youtube = try c.decodeIfPresent(Int.self, forKey: .youtube) ?? 0
+        custom = try c.decodeIfPresent(Int.self, forKey: .custom) ?? 0
         protectedSeconds = try c.decodeIfPresent(Double.self, forKey: .protectedSeconds) ?? 0
     }
 }
@@ -81,6 +83,7 @@ final class StatsStore: ObservableObject {
             var stats = DayStats()
             stats.instagram = insta
             stats.shorts = shorts
+            stats.custom = (daysAgo * 3 + 1) % 4
             stats.protectedSeconds = hours * 3600
             days[StatsStore.key(for: date)] = stats
         }
@@ -116,6 +119,7 @@ final class StatsStore: ObservableObject {
     var weekTotal: Int { lastSevenDays.reduce(0) { $0 + $1.stats.total } }
     var weekInstagram: Int { lastSevenDays.reduce(0) { $0 + $1.stats.instagram } }
     var weekShorts: Int { lastSevenDays.reduce(0) { $0 + $1.stats.shorts + $1.stats.youtube } }
+    var weekCustom: Int { lastSevenDays.reduce(0) { $0 + $1.stats.custom } }
     var allTimeTotal: Int { days.values.reduce(0) { $0 + $1.total } }
 
     /// Seconds of protection today, including the stretch that is still running.
@@ -153,6 +157,7 @@ final class StatsStore: ObservableObject {
         case .instagram: stats.instagram += 1
         case .shorts: stats.shorts += 1
         case .youtube: stats.youtube += 1
+        case .custom: stats.custom += 1
         }
         days[key] = stats
         save()

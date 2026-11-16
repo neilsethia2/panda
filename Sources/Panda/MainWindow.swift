@@ -38,16 +38,21 @@ final class MainWindowController: NSObject, NSWindowDelegate {
             w.titlebarAppearsTransparent = true
             w.isMovableByWindowBackground = true
             w.isReleasedWhenClosed = false
-            w.backgroundColor = NSColor(red: 0.984, green: 0.965, blue: 0.925, alpha: 1)
-            w.appearance = NSAppearance(named: .aqua)
             w.contentViewController = NSHostingController(rootView: makeRoot(model))
             w.setContentSize(NSSize(width: 760, height: 640))
             w.center()
             w.delegate = self
             window = w
+            applyTheme()
         }
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    /// Match the window chrome to the current light or dark theme.
+    func applyTheme() {
+        window?.backgroundColor = Theme.surfaceNS
+        window?.appearance = NSAppearance(named: Theme.dark ? .darkAqua : .aqua)
     }
 }
 
@@ -83,8 +88,9 @@ struct MainView: View {
             }
         }
         .frame(width: 760, height: 640)
-        .background(Theme.cream)
-        .preferredColorScheme(.light)
+        .background(SurfaceBackground())
+        .preferredColorScheme(Theme.dark ? .dark : .light)
+        .id(settings.themeToken)
     }
 }
 
@@ -96,8 +102,8 @@ struct TabBar: View {
         HStack(spacing: 2) {
             ForEach(MainTab.allCases) { tab in
                 Text(tab.rawValue)
-                    .font(Theme.body(12.5, weight: .semibold))
-                    .foregroundColor(selection == tab ? Theme.cream : Theme.ink)
+                    .font(Theme.body(12.5, weight: .medium))
+                    .foregroundColor(selection == tab ? Theme.surface : Theme.ink)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 6.5)
                     .background(Capsule().fill(selection == tab ? Theme.ink : Color.clear))
@@ -108,7 +114,7 @@ struct TabBar: View {
             }
         }
         .padding(3)
-        .background(Capsule().fill(Theme.creamDeep))
+        .background(Capsule().fill(Theme.fill))
     }
 }
 
@@ -117,8 +123,8 @@ struct SectionTitle: View {
 
     var body: some View {
         Text(text.uppercased())
-            .tracking(0.6)
-            .font(Theme.body(12, weight: .bold))
+            .tracking(1.4)
+            .font(Theme.label(10.5))
             .foregroundColor(Theme.muted)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, 4)
@@ -137,7 +143,7 @@ struct DashboardContent: View {
             return (.sleeping, "Panda is off duty", "Turn protection on from the menu bar when you want to focus.")
         }
         if today.total == 0 {
-            return (.celebrating, "A clean day so far", "No Instagram, no Shorts. Panda is very proud of you.")
+            return (.celebrating, "A clean day so far", "Nothing closed yet today. Panda has had nothing to do.")
         }
         if today.total <= 3 {
             return (.happy, "Panda has your back", "A couple of slips, all caught. Keep going.")
@@ -167,9 +173,10 @@ struct DashboardContent: View {
             }
 
             SectionTitle(text: "Today")
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 StatTile(value: "\(today.instagram)", label: "Instagram attempts blocked")
-                StatTile(value: "\(today.shorts)", label: "YouTube Shorts blocked")
+                StatTile(value: "\(today.shorts + today.youtube)", label: "YouTube Shorts blocked")
+                StatTile(value: "\(today.custom)", label: "From your own blocklist")
                 StatTile(value: "\(today.total)", label: "Distractions prevented")
                 TimelineView(.periodic(from: Date(), by: 30)) { context in
                     StatTile(
@@ -185,16 +192,17 @@ struct DashboardContent: View {
                     HStack(alignment: .firstTextBaseline) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(stats.weekTotal) blocked in the last 7 days")
-                                .font(Theme.body(15, weight: .bold))
+                                .font(Theme.body(15, weight: .semibold))
                                 .foregroundColor(Theme.ink)
-                            Text("\(stats.weekInstagram) Instagram  ·  \(stats.weekShorts) YouTube  ·  \(DurationText.short(stats.protectedSecondsThisWeek())) protected")
+                            Text("\(stats.weekInstagram) Instagram  ·  \(stats.weekShorts) YouTube  ·  \(stats.weekCustom) your list  ·  \(DurationText.short(stats.protectedSecondsThisWeek())) protected")
                                 .font(Theme.body(12))
                                 .foregroundColor(Theme.muted)
                         }
                         Spacer()
                         HStack(spacing: 12) {
                             LegendDot(color: Theme.ink, text: "Instagram")
-                            LegendDot(color: Theme.gold, text: "YouTube")
+                            LegendDot(color: Theme.series2, text: "YouTube")
+                            LegendDot(color: Theme.series3, text: "Your list")
                         }
                     }
                     WeekChart(days: stats.lastSevenDays)
@@ -225,7 +233,7 @@ struct StatTile: View {
         Card(padding: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(value)
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .font(Theme.number(26))
                     .foregroundColor(Theme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
@@ -272,26 +280,32 @@ struct WeekChart: View {
                 ForEach(days) { day in
                     let instagramHeight = barArea * CGFloat(day.stats.instagram) / CGFloat(peak)
                     let youtubeHeight = barArea * CGFloat(day.stats.shorts + day.stats.youtube) / CGFloat(peak)
+                    let customHeight = barArea * CGFloat(day.stats.custom) / CGFloat(peak)
 
                     VStack(spacing: 4) {
                         Spacer(minLength: 0)
                         Text(day.stats.total > 0 ? "\(day.stats.total)" : " ")
-                            .font(Theme.body(11, weight: .semibold))
+                            .font(Theme.body(11, weight: .medium))
                             .foregroundColor(Theme.ink)
                             .frame(height: valueHeight - 4)
                         if day.stats.total == 0 {
                             Capsule()
-                                .fill(Theme.creamDeep)
+                                .fill(Theme.fill)
                                 .frame(height: 5)
                         } else {
                             VStack(spacing: 2) {
+                                if customHeight > 0 {
+                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                        .fill(Theme.series3)
+                                        .frame(height: max(4, customHeight - 1))
+                                }
                                 if youtubeHeight > 0 {
-                                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                        .fill(Theme.gold)
+                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                        .fill(Theme.series2)
                                         .frame(height: max(4, youtubeHeight - 1))
                                 }
                                 if instagramHeight > 0 {
-                                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                    RoundedRectangle(cornerRadius: 3, style: .continuous)
                                         .fill(Theme.ink)
                                         .frame(height: max(4, instagramHeight - 1))
                                 }
@@ -315,6 +329,7 @@ struct SettingsContent: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var stats: StatsStore
     @EnvironmentObject var actions: AppActions
+    @EnvironmentObject var characters: CharacterStore
 
     @State private var launchAtLogin = LoginItem.isEnabled
     @State private var confirmReset = false
@@ -323,7 +338,11 @@ struct SettingsContent: View {
         VStack(spacing: 16) {
             protectionSection
             youtubeSection
-            pandaSection
+            SectionTitle(text: "Your blocklist")
+            BlocklistCard()
+            closerSection
+            characterSection
+            appearanceSection
             generalSection
             dataSection
             HStack {
@@ -342,7 +361,7 @@ struct SettingsContent: View {
                 SettingToggle(title: "Master protection",
                               detail: "When this is off, nothing is blocked at all.",
                               isOn: $settings.master, large: true)
-                Divider().overlay(Theme.creamLine)
+                Divider().overlay(Theme.line)
                 SettingToggle(title: "Instagram protection",
                               detail: "Closes any instagram.com tab the moment it opens.",
                               isOn: $settings.instagram)
@@ -357,12 +376,12 @@ struct SettingsContent: View {
                 SettingToggle(title: "YouTube protection",
                               detail: "Turns Panda's YouTube rules on or off as a group.",
                               isOn: $settings.youtube)
-                Divider().overlay(Theme.creamLine)
+                Divider().overlay(Theme.line)
                 SettingToggle(title: "Block YouTube Shorts",
                               detail: "Closes any tab that lands on youtube.com/shorts.",
                               isOn: $settings.shorts)
                     .opacity(settings.youtube ? 1 : 0.45)
-                Divider().overlay(Theme.creamLine)
+                Divider().overlay(Theme.line)
                 SettingToggle(title: "Allow normal YouTube videos",
                               detail: "Keep this on so lectures and tutorials are never touched. Turn it off to close all of YouTube.",
                               isOn: $settings.allowNormalVideos)
@@ -371,39 +390,138 @@ struct SettingsContent: View {
         }
     }
 
-    @ViewBuilder private var pandaSection: some View {
-        SectionTitle(text: "Panda")
+    private var entryOptions: [(EntrySide, String)] {
+        var options: [(EntrySide, String)] = [
+            (.left, EntrySide.left.title),
+            (.right, EntrySide.right.title),
+            (.nearest, EntrySide.nearest.title),
+            (.top, EntrySide.top.title),
+        ]
+        if settings.companionMode == .always {
+            options.append((.home, EntrySide.home.title))
+        }
+        return options
+    }
+
+    @ViewBuilder private var closerSection: some View {
+        let hidden = settings.companionMode == .menuBarOnly
+
+        SectionTitle(text: "The tab closer")
         Card {
             VStack(alignment: .leading, spacing: 13) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Where Panda lives")
-                        .font(Theme.body(13.5, weight: .semibold))
-                        .foregroundColor(Theme.ink)
-                    HStack(spacing: 6) {
-                        ForEach(CompanionMode.allCases) { mode in
-                            Text(mode.title)
-                                .font(Theme.body(12, weight: .semibold))
-                                .foregroundColor(settings.companionMode == mode ? Theme.cream : Theme.ink)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6.5)
-                                .background(Capsule().fill(settings.companionMode == mode ? Theme.ink : Theme.creamDeep))
-                                .contentShape(Capsule())
-                                .onTapGesture { settings.companionMode = mode }
+                OptionRow(title: "When he is on screen",
+                          detail: "Only when he closes something: he runs in, shuts the tab and leaves, like in the video. Always: he also rests in a corner between catches.") {
+                    ChoiceChips(options: CompanionMode.allCases.map { ($0, $0.title) }, selection: $settings.companionMode)
+                }
+                Divider().overlay(Theme.line)
+                Group {
+                    OptionRow(title: "Where he comes in from",
+                              detail: "He runs straight along the tab bar from this side and leaves the same way.") {
+                        ChoiceChips(options: entryOptions, selection: $settings.entrySide)
+                    }
+                    Divider().overlay(Theme.line)
+                    OptionRow(title: "Size", detail: nil) {
+                        ChoiceChips(options: CompanionSize.allCases.map { ($0, $0.title) }, selection: $settings.companionSize)
+                    }
+                    Divider().overlay(Theme.line)
+                    SettingToggle(title: "He runs to the tab and closes it",
+                                  detail: "The run takes about half a second. Turn this off to close tabs the instant they open.",
+                                  isOn: $settings.walkToTab)
+                    Divider().overlay(Theme.line)
+                    SettingToggle(title: "Show a message when a tab is closed",
+                                  detail: "The speech bubble next to him, such as \"Not today! Get back to work.\"",
+                                  isOn: $settings.showBubble)
+                    Divider().overlay(Theme.line)
+                    HStack {
+                        SiteLabel(title: "See it in action", detail: "Plays one run across the top of your screen with the settings above.")
+                        Spacer(minLength: 8)
+                        if settings.companionMode == .always {
+                            Button("Reset resting spot") { actions.resetCompanion() }
+                                .buttonStyle(SoftButtonStyle())
                         }
+                        Button("Preview") { actions.demoCompanion() }
+                            .buttonStyle(SoftButtonStyle(prominent: true))
                     }
                 }
-                Divider().overlay(Theme.creamLine)
-                SettingToggle(title: "Panda runs to the tab and closes it",
-                              detail: "He takes about half a second to get there. Turn this off to close tabs instantly.",
-                              isOn: $settings.walkToTab)
-                    .opacity(settings.companionMode == .menuBarOnly ? 0.45 : 1)
-                Divider().overlay(Theme.creamLine)
-                HStack {
-                    SiteLabel(title: "Panda's corner", detail: "Drag him anywhere on screen. This sends him back to the bottom right.")
-                    Spacer(minLength: 8)
-                    Button("Reset position") { actions.resetCompanion() }
-                        .buttonStyle(SoftButtonStyle())
+                .opacity(hidden ? 0.4 : 1)
+                .allowsHitTesting(!hidden)
+            }
+        }
+    }
+
+    @ViewBuilder private var characterSection: some View {
+        SectionTitle(text: "Character")
+        Card {
+            VStack(alignment: .leading, spacing: 13) {
+                OptionRow(title: "Who closes your tabs",
+                          detail: "Use the panda, or any picture of your own. Your picture is cut out and given the same run: it hops, rocks and leans as it moves.") {
+                    ChoiceChips(
+                        options: [(CharacterStyle.panda, "Panda"), (CharacterStyle.custom, "My own picture")],
+                        selection: $settings.characterStyle
+                    )
                 }
+
+                if settings.characterStyle == .custom {
+                    Divider().overlay(Theme.line)
+                    HStack(alignment: .center, spacing: 14) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Theme.surface)
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(Theme.line, lineWidth: 1)
+                            if let image = characters.image {
+                                Image(nsImage: image)
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .padding(8)
+                            } else {
+                                Text("No picture")
+                                    .font(Theme.label(9.5))
+                                    .foregroundColor(Theme.muted)
+                            }
+                        }
+                        .frame(width: 76, height: 76)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(characters.working ? "Working on it…" : (characters.note ?? (characters.hasImage ? "Your character is ready." : "Pick a picture with one clear subject. A PNG with a transparent background works best.")))
+                                .font(Theme.body(12))
+                                .foregroundColor(Theme.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                            HStack(spacing: 8) {
+                                Button(characters.hasImage ? "Choose another picture" : "Choose a picture") {
+                                    characters.chooseImage(removeBackground: settings.removeImageBackground) { _ in }
+                                }
+                                .buttonStyle(SoftButtonStyle(prominent: true))
+                                .disabled(characters.working)
+                                if characters.hasImage {
+                                    Button("Remove") {
+                                        characters.remove()
+                                        settings.characterStyle = .panda
+                                    }
+                                    .buttonStyle(SoftButtonStyle())
+                                }
+                            }
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    Divider().overlay(Theme.line)
+                    SettingToggle(title: "Cut the subject out of its background",
+                                  detail: "Applies to the next picture you choose. Needs macOS 14 or later.",
+                                  isOn: $settings.removeImageBackground)
+                    Divider().overlay(Theme.line)
+                    SettingToggle(title: "Mirror the picture when it runs left",
+                                  detail: "Turn this off if your picture has writing on it or should never be flipped.",
+                                  isOn: $settings.flipWhenWalkingLeft)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var appearanceSection: some View {
+        SectionTitle(text: "Appearance")
+        Card {
+            OptionRow(title: "Theme", detail: nil) {
+                ChoiceChips(options: AppearanceMode.allCases.map { ($0, $0.title) }, selection: $settings.appearance)
             }
         }
     }
@@ -421,11 +539,11 @@ struct SettingsContent: View {
                                     launchAtLogin = LoginItem.isEnabled
                                 }
                               ))
-                Divider().overlay(Theme.creamLine)
+                Divider().overlay(Theme.line)
                 SettingToggle(title: "Notifications",
-                              detail: "A short note each time Panda closes something.",
+                              detail: "A macOS notification each time something is closed. Separate from the speech bubble.",
                               isOn: $settings.notifications)
-                Divider().overlay(Theme.creamLine)
+                Divider().overlay(Theme.line)
                 SettingToggle(title: "Guard browsers that don't have the extension",
                               detail: "Uses macOS Automation to check the front tab once a second, only while that browser is in front. Safari always works this way.",
                               isOn: $settings.automationFallback)
@@ -456,6 +574,145 @@ struct SettingsContent: View {
     }
 }
 
+/// A titled setting whose control sits underneath the text.
+struct OptionRow<Control: View>: View {
+    let title: String
+    let detail: String?
+    let control: Control
+
+    init(title: String, detail: String?, @ViewBuilder control: () -> Control) {
+        self.title = title
+        self.detail = detail
+        self.control = control()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(Theme.body(13.5, weight: .medium))
+                    .foregroundColor(Theme.ink)
+                if let detail = detail {
+                    Text(detail)
+                        .font(Theme.body(11.5))
+                        .foregroundColor(Theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            control
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Paste a link, and Panda closes that site too.
+struct BlocklistCard: View {
+    @EnvironmentObject var settings: AppSettings
+
+    @State private var text = ""
+    @State private var wholeSite = true
+    @State private var feedback: String?
+
+    var body: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 13) {
+                SettingToggle(title: "Block the sites on my list",
+                              detail: "Anything you add here is closed the same way as Instagram.",
+                              isOn: $settings.customOn)
+                Divider().overlay(Theme.line)
+
+                VStack(alignment: .leading, spacing: 9) {
+                    HStack(spacing: 8) {
+                        field
+                        Button("Add") { add(text) }
+                            .buttonStyle(SoftButtonStyle(prominent: true))
+                        Button("Paste from clipboard") {
+                            if let pasted = NSPasteboard.general.string(forType: .string) {
+                                add(pasted)
+                            } else {
+                                feedback = "There is no link on the clipboard."
+                            }
+                        }
+                        .buttonStyle(SoftButtonStyle())
+                    }
+                    HStack(spacing: 10) {
+                        ChoiceChips(options: [(true, "Block the whole site"), (false, "Only this exact link")], selection: $wholeSite)
+                        if let feedback = feedback {
+                            Text(feedback)
+                                .font(Theme.body(11.5))
+                                .foregroundColor(Theme.muted)
+                                .lineLimit(2)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                }
+
+                if !settings.customSites.isEmpty {
+                    Divider().overlay(Theme.line)
+                    VStack(spacing: 0) {
+                        ForEach(settings.customSites, id: \.self) { entry in
+                            HStack(spacing: 10) {
+                                Text(entry)
+                                    .font(Theme.label(12))
+                                    .foregroundColor(Theme.ink)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Text(entry.contains("/") || entry.contains("?") ? "This link" : "Whole site")
+                                    .font(Theme.body(11))
+                                    .foregroundColor(Theme.muted)
+                                Spacer(minLength: 8)
+                                Button("Remove") { settings.removeCustomSite(entry) }
+                                    .buttonStyle(SoftButtonStyle())
+                            }
+                            .padding(.vertical, 5)
+                        }
+                    }
+                    .opacity(settings.customOn ? 1 : 0.45)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var field: some View {
+        if PreviewRenderer.rendering {
+            // The system text field cannot be drawn off-screen, so previews show a stand-in.
+            Text("Paste a link, for example reddit.com")
+                .font(Theme.body(13))
+                .foregroundColor(Theme.muted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.surface))
+                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Theme.line, lineWidth: 1))
+        } else {
+            TextField("Paste a link, for example reddit.com", text: $text)
+                .textFieldStyle(.plain)
+                .font(Theme.body(13))
+                .foregroundColor(Theme.ink)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.surface))
+                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Theme.line, lineWidth: 1))
+                .onSubmit { add(text) }
+        }
+    }
+
+    private func add(_ raw: String) {
+        switch settings.addCustomSite(raw, wholeSite: wholeSite) {
+        case .added(let entry):
+            feedback = "Added \(entry)."
+            text = ""
+        case .duplicate(let entry):
+            feedback = "\(entry) is already on the list."
+            text = ""
+        case .invalid:
+            feedback = raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? "Paste or type a link first."
+                : "That doesn't look like a web address."
+        }
+    }
+}
+
 struct SettingToggle: View {
     let title: String
     let detail: String
@@ -466,7 +723,7 @@ struct SettingToggle: View {
         Toggle(isOn: $isOn) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(Theme.body(13.5, weight: .semibold))
+                    .font(Theme.body(13.5, weight: .medium))
                     .foregroundColor(Theme.ink)
                 Text(detail)
                     .font(Theme.body(11.5))

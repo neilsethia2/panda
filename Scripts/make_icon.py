@@ -14,11 +14,11 @@ import sys
 
 from PIL import Image, ImageDraw
 
-INK = (31, 29, 26, 255)
+INK = (22, 22, 22, 255)
 WHITE = (255, 255, 255, 255)
-CREAM = (251, 246, 236, 255)
-CREAM_DEEP = (243, 231, 207, 255)
-BLUSH = (247, 204, 189, 200)
+CREAM = (232, 232, 230, 255)
+CREAM_DEEP = (206, 206, 203, 255)
+BLUSH = (204, 204, 204, 205)
 
 
 def ellipse_points(cx, cy, w, h, angle=0.0, steps=120):
@@ -88,7 +88,7 @@ def draw_panda(pen, face_only=False):
         body = ellipse_points(50, 76, 52, 38)
         pen.fill(body, WHITE)
         pen.outline(body, INK, 2.2)
-        pen.fill(ellipse_points(50, 80, 26, 20), CREAM_DEEP)
+        pen.fill(ellipse_points(50, 80, 26, 20), (228, 228, 226, 255))
         pen.fill(capsule_points(27, 75, 12, 24, 0.32), INK)
         pen.fill(capsule_points(73, 75, 12, 24, -0.32), INK)
 
@@ -128,6 +128,16 @@ def app_icon(size=1024):
     pd = ImageDraw.Draw(plate)
     # Soft bamboo-free, two-tone cream backdrop
     pd.ellipse((-plate_size * 0.2, plate_size * 0.62, plate_size * 1.2, plate_size * 1.5), fill=CREAM_DEEP)
+    # Film grain, so the plate reads as a matte material
+    import random
+    rng = random.Random(7)
+    grain = Image.new("L", (plate_size // 4, plate_size // 4))
+    grain.putdata([rng.randint(0, 255) for _ in range(grain.size[0] * grain.size[1])])
+    grain = grain.resize((plate_size, plate_size), Image.NEAREST)
+    shade = Image.new("RGBA", (plate_size, plate_size), (0, 0, 0, 0))
+    shade.putalpha(grain.point(lambda v: int(v * 0.075)))
+    plate.alpha_composite(shade)
+    pd = ImageDraw.Draw(plate)
     scale = plate_size / 100 * 0.80
     pen = Pen(pd, scale, plate_size * 0.10, plate_size * 0.115)
     draw_panda(pen)

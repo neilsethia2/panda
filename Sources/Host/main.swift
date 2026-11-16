@@ -27,8 +27,12 @@ func readMessage() -> [String: Any]? {
     return (try? JSONSerialization.jsonObject(with: body)) as? [String: Any]
 }
 
+let outputLock = NSLock()
+
 func writeMessage(_ message: [String: Any]) {
     guard let body = try? JSONSerialization.data(withJSONObject: message) else { return }
+    outputLock.lock()
+    defer { outputLock.unlock() }
     let length = UInt32(body.count)
     var header = Data(count: 4)
     header[0] = UInt8(length & 0xff)
@@ -75,6 +79,38 @@ if let data = try? JSONSerialization.data(withJSONObject: [
     try? data.write(to: presenceFile, options: .atomic)
 }
 
+// The extension keeps a copy of the host names on the user's blocklist, so ordinary browsing
+// never has to be sent here. When the app rewrites its settings file, tell the extension.
+// This is a kernel file-system event on the folder, not a timer: it costs nothing while idle.
+var lastSentHosts: [String] = SharedSettings.load().customHosts
+let hostsLock = NSLock()
+
+func pushSitesIfChanged() {
+    let hosts = SharedSettings.load().customHosts
+    hostsLock.lock()
+    let changed = hosts != lastSentHosts
+    if changed { lastSentHosts = hosts }
+    hostsLock.unlock()
+    if changed {
+        writeMessage(["type": "sites", "hosts": hosts])
+        DebugLog.write("pushed \(hosts.count) blocklist hosts")
+    }
+}
+
+PandaPaths.ensureSupportDir()
+let watchDescriptor = open(PandaPaths.supportDir.path, O_EVTONLY)
+var settingsWatcher: DispatchSourceFileSystemObject?
+if watchDescriptor >= 0 {
+    let source = DispatchSource.makeFileSystemObjectSource(
+        fileDescriptor: watchDescriptor,
+        eventMask: [.write, .rename, .delete],
+        queue: DispatchQueue.global(qos: .utility)
+    )
+    source.setEventHandler { pushSitesIfChanged() }
+    source.resume()
+    settingsWatcher = source
+}
+
 func number(_ value: Any?) -> Double? {
     if let d = value as? Double { return d }
     if let i = value as? Int { return Double(i) }
@@ -86,10 +122,15 @@ while let message = readMessage() {
     let type = message["type"] as? String ?? ""
     switch type {
     case "hello":
+        let hosts = SharedSettings.load().customHosts
+        hostsLock.lock()
+        lastSentHosts = hosts
+        hostsLock.unlock()
         writeMessage([
             "type": "hello",
             "appRunning": appIsRunning(),
             "browser": browserName,
+            "hosts": hosts,
         ])
 
     case "check":

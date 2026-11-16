@@ -87,13 +87,13 @@ struct SetupContent: View {
         Card(padding: 16) {
             HStack(alignment: .top, spacing: 12) {
                 Text("!")
-                    .font(.system(size: 16, weight: .black, design: .rounded))
-                    .foregroundColor(Theme.cream)
+                    .font(Theme.number(16))
+                    .foregroundColor(Theme.surface)
                     .frame(width: 26, height: 26)
                     .background(Circle().fill(Theme.ink))
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Move Panda to Applications first")
-                        .font(Theme.body(14, weight: .bold))
+                        .font(Theme.body(14, weight: .semibold))
                         .foregroundColor(Theme.ink)
                     Text("Panda is running from the disk image or the Downloads folder. Quit, drag Panda into Applications, and open it from there. The browser link can't be set up until then.")
                         .font(Theme.body(12.5))
@@ -174,7 +174,7 @@ struct SetupContent: View {
 
                 if !status.deniedBrowsers.isEmpty {
                     Text("Access was refused for \(status.deniedBrowsers.joined(separator: ", ")). Open Automation settings, switch Panda on for that browser, then press Try again.")
-                        .font(Theme.body(12.5, weight: .semibold))
+                        .font(Theme.body(12.5, weight: .medium))
                         .foregroundColor(Theme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -224,7 +224,7 @@ struct SetupContent: View {
                     }
                 }
 
-                Divider().overlay(Theme.creamLine)
+                Divider().overlay(Theme.line)
 
                 SettingToggle(
                     title: "Open Panda when I log in",
@@ -261,12 +261,12 @@ struct StepHeader: View {
     var body: some View {
         HStack(spacing: 10) {
             Text(done ? "✓" : number)
-                .font(.system(size: 13, weight: .heavy, design: .rounded))
-                .foregroundColor(done ? Theme.cream : Theme.ink)
+                .font(Theme.number(13))
+                .foregroundColor(done ? Theme.surface : Theme.ink)
                 .frame(width: 26, height: 26)
-                .background(Circle().fill(done ? Theme.bamboo : Theme.creamDeep))
+                .background(Circle().fill(done ? Theme.ink : Theme.fill))
             Text(title)
-                .font(Theme.body(15, weight: .bold))
+                .font(Theme.body(15, weight: .semibold))
                 .foregroundColor(Theme.ink)
             Spacer(minLength: 8)
             if let badge = badge {
@@ -283,7 +283,7 @@ struct StepLine: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(index)
-                .font(Theme.body(11.5, weight: .bold))
+                .font(Theme.body(11.5, weight: .semibold))
                 .foregroundColor(Theme.muted)
                 .frame(width: 14, alignment: .leading)
             Text(text)

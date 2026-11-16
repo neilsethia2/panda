@@ -1,7 +1,7 @@
 // Panda browser extension (Chrome, Arc, Brave, Edge and other Chromium browsers).
 //
 // This worker does no polling. It wakes up only when a tab's address changes, checks whether
-// the address is Instagram or YouTube, and if so asks the Panda Mac app (through the native
+// the address is Instagram, YouTube or a site on your own blocklist, and if so asks the Panda Mac app (through the native
 // host) whether that tab should be closed. Settings live in the Mac app, so the toggles in
 // the menu bar are the single source of truth. Page content is never read.
 
@@ -15,6 +15,28 @@ const queued = new Map();    // tab id -> newest address that arrived during a c
 let lastHello = null;
 let lastError = '';
 
+// Host names from the blocklist in the Panda app (for example "reddit.com"). The app sends
+// them when the extension connects and again whenever the list changes.
+let customHosts = [];
+let sitesLoaded = false;
+let sitesWaiters = [];
+
+function markSitesLoaded() {
+  sitesLoaded = true;
+  for (const resolve of sitesWaiters) resolve();
+  sitesWaiters = [];
+}
+
+// Resolves once the blocklist has arrived, or after a short wait if the app is not there.
+function sitesReady() {
+  if (sitesLoaded) return Promise.resolve();
+  connect();
+  return new Promise((resolve) => {
+    sitesWaiters.push(resolve);
+    setTimeout(markSitesLoaded, 600);
+  });
+}
+
 function connect() {
   if (port) return port;
   try {
@@ -24,6 +46,7 @@ function connect() {
       lastError = (chrome.runtime.lastError && chrome.runtime.lastError.message) || '';
       if (port === p) port = null;
       lastHello = null;
+      sitesLoaded = false;
       for (const resolve of pending.values()) resolve(null);
       pending.clear();
     });
@@ -41,6 +64,12 @@ function onHostMessage(message) {
   if (!message) return;
   if (message.type === 'hello') {
     lastHello = message;
+    if (Array.isArray(message.hosts)) customHosts = message.hosts;
+    markSitesLoaded();
+    return;
+  }
+  if (message.type === 'sites') {
+    if (Array.isArray(message.hosts)) customHosts = message.hosts;
     return;
   }
   if (message.type === 'verdict') {
@@ -87,13 +116,19 @@ function isCandidate(url) {
   } catch (error) {
     return false;
   }
-  return (
+  if (
     host === 'instagram.com' ||
     host.endsWith('.instagram.com') ||
     host === 'youtube.com' ||
     host.endsWith('.youtube.com') ||
     host === 'youtu.be'
-  );
+  ) {
+    return true;
+  }
+  for (const blocked of customHosts) {
+    if (host === blocked || host.endsWith('.' + blocked)) return true;
+  }
+  return false;
 }
 
 async function geometryFor(tab) {
@@ -114,6 +149,8 @@ async function geometryFor(tab) {
 }
 
 async function inspect(tabId, url) {
+  if (!url) return;
+  if (!sitesLoaded) await sitesReady();
   if (!isCandidate(url)) return;
   if (inFlight.has(tabId)) {
     // A check is already running for this tab. Remember the newest address so it is

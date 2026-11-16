@@ -7,7 +7,9 @@ final class AppActions: ObservableObject {
     var openSettings: () -> Void = {}
     var openSetup: () -> Void = {}
     var closePopover: () -> Void = {}
+    var openBlocklist: () -> Void = {}
     var resetCompanion: () -> Void = {}
+    var demoCompanion: () -> Void = {}
     var retryBrowserAccess: () -> Void = {}
     var quit: () -> Void = {}
 }
@@ -18,7 +20,7 @@ final class StatusItemController: NSObject {
     private let popover = NSPopover()
     private let settings: AppSettings
 
-    static let popoverSize = NSSize(width: 320, height: 520)
+    static let popoverSize = NSSize(width: 320, height: 586)
 
     init(settings: AppSettings, stats: StatsStore, actions: AppActions) {
         self.settings = settings
@@ -36,7 +38,7 @@ final class StatusItemController: NSObject {
         popover.contentSize = StatusItemController.popoverSize
         popover.behavior = .transient
         popover.animates = true
-        popover.appearance = NSAppearance(named: .aqua)
+        popover.appearance = NSAppearance(named: Theme.dark ? .darkAqua : .aqua)
 
         if let button = statusItem.button {
             button.target = self
@@ -60,6 +62,11 @@ final class StatusItemController: NSObject {
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         NSApp.activate(ignoringOtherApps: true)
         popover.contentViewController?.view.window?.makeKey()
+    }
+
+    /// Match the popover chrome to the current light or dark theme.
+    func applyTheme() {
+        popover.appearance = NSAppearance(named: Theme.dark ? .darkAqua : .aqua)
     }
 
     func closePopover() {

@@ -71,11 +71,18 @@ enum Lines {
         "Later. Panda promises.",
     ]
 
+    static let custom = [
+        "That one is on your list. Closed.",
+        "You told me to close that.",
+        "Blocked, like you asked.",
+    ]
+
     static func line(for kind: BlockKind) -> String {
         switch kind {
         case .instagram: return instagram.randomElement() ?? "Instagram can wait."
         case .shorts: return shorts.randomElement() ?? "That was a Short."
         case .youtube: return youtube.randomElement() ?? "Later."
+        case .custom: return custom.randomElement() ?? "Blocked, like you asked."
         }
     }
 
@@ -84,6 +91,7 @@ enum Lines {
         case .instagram: return "Panda closed Instagram"
         case .shorts: return "Panda closed a YouTube Short"
         case .youtube: return "Panda closed YouTube"
+        case .custom: return "Panda closed a site on your blocklist"
         }
     }
 }

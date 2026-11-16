@@ -31,8 +31,9 @@ struct PopoverView: View {
         }
         .padding(16)
         .frame(width: StatusItemController.popoverSize.width, height: StatusItemController.popoverSize.height, alignment: .top)
-        .background(Theme.cream)
-        .preferredColorScheme(.light)
+        .background(SurfaceBackground())
+        .preferredColorScheme(Theme.dark ? .dark : .light)
+        .id(settings.themeToken)
     }
 
     private var header: some View {
@@ -44,10 +45,11 @@ struct PopoverView: View {
                     .foregroundColor(Theme.ink)
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(settings.protectionActive ? Theme.bamboo : Theme.creamLine)
-                        .frame(width: 8, height: 8)
+                        .fill(settings.protectionActive ? Theme.ink : Color.clear)
+                        .overlay(Circle().stroke(Theme.ink, lineWidth: 1.2))
+                        .frame(width: 7, height: 7)
                     Text(settings.protectionActive ? "Protection ON" : "Protection OFF")
-                        .font(Theme.body(13, weight: .semibold))
+                        .font(Theme.body(13, weight: .medium))
                         .foregroundColor(Theme.ink)
                 }
                 Text(settings.protectionActive ? "Your little productivity companion" : "Panda is napping")
@@ -64,7 +66,7 @@ struct PopoverView: View {
             Toggle(isOn: $settings.master) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Master protection")
-                        .font(Theme.body(14, weight: .bold))
+                        .font(Theme.body(14, weight: .semibold))
                         .foregroundColor(Theme.ink)
                     Text(settings.master ? "Panda is on watch" : "Everything is allowed")
                         .font(Theme.body(11.5))
@@ -86,7 +88,7 @@ struct PopoverView: View {
                 }
                 .toggleStyle(PandaToggleStyle())
 
-                Divider().overlay(Theme.creamLine)
+                Divider().overlay(Theme.line)
 
                 Toggle(isOn: shortsBinding) {
                     SiteLabel(
@@ -96,12 +98,35 @@ struct PopoverView: View {
                 }
                 .toggleStyle(PandaToggleStyle())
 
-                Divider().overlay(Theme.creamLine)
+                Divider().overlay(Theme.line)
 
                 HStack {
                     SiteLabel(title: "Normal videos", detail: "Lectures and tutorials stay open")
                     Spacer(minLength: 8)
                     Pill(text: (settings.youtube && !settings.allowNormalVideos) ? "Blocked" : "Allowed")
+                }
+
+                Divider().overlay(Theme.line)
+
+                if settings.customSites.isEmpty {
+                    HStack {
+                        SiteLabel(title: "Your blocklist", detail: "Paste any link to block it too")
+                        Spacer(minLength: 8)
+                        Button("Add a site") { actions.openBlocklist() }
+                            .buttonStyle(SoftButtonStyle())
+                    }
+                } else {
+                    Toggle(isOn: $settings.customOn) {
+                        HStack(spacing: 8) {
+                            SiteLabel(
+                                title: "Your blocklist",
+                                detail: settings.customSites.count == 1 ? "1 site" : "\(settings.customSites.count) sites"
+                            )
+                            Button("Edit") { actions.openBlocklist() }
+                                .buttonStyle(SoftButtonStyle())
+                        }
+                    }
+                    .toggleStyle(PandaToggleStyle())
                 }
             }
             .opacity(settings.master ? 1 : 0.45)
@@ -114,14 +139,16 @@ struct PopoverView: View {
         return Card(padding: 14) {
             HStack(alignment: .center, spacing: 12) {
                 Text("\(today.total)")
-                    .font(.system(size: 34, weight: .heavy, design: .rounded))
+                    .font(Theme.number(34))
                     .foregroundColor(Theme.ink)
                     .frame(minWidth: 44, alignment: .leading)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(today.total == 1 ? "distraction blocked today" : "distractions blocked today")
-                        .font(Theme.body(12.5, weight: .semibold))
+                        .font(Theme.body(12.5, weight: .medium))
                         .foregroundColor(Theme.ink)
-                    Text("\(today.instagram) Instagram  ·  \(today.shorts + today.youtube) YouTube")
+                    Text(today.custom > 0
+                         ? "\(today.instagram) Instagram  ·  \(today.shorts + today.youtube) YouTube  ·  \(today.custom) your list"
+                         : "\(today.instagram) Instagram  ·  \(today.shorts + today.youtube) YouTube")
                         .font(Theme.body(11.5))
                         .foregroundColor(Theme.muted)
                 }
@@ -151,7 +178,7 @@ struct SiteLabel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 1.5) {
             Text(title)
-                .font(Theme.body(13.5, weight: .semibold))
+                .font(Theme.body(13.5, weight: .medium))
                 .foregroundColor(Theme.ink)
             Text(detail)
                 .font(Theme.body(11.5))

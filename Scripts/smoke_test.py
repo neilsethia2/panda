@@ -13,6 +13,7 @@ It temporarily replaces Panda's settings file and puts it back afterwards.
 import datetime
 import json
 import os
+import select
 import shutil
 import struct
 import subprocess
@@ -56,15 +57,63 @@ def talk(messages, assume_running=True, linger=0.0):
     return replies
 
 
+def read_frame(proc, timeout):
+    """One length-prefixed message from the host, or None if nothing arrives in time."""
+    fd = proc.stdout.fileno()
+
+    def read_exact(count):
+        data = b""
+        while len(data) < count:
+            ready, _, _ = select.select([fd], [], [], timeout)
+            if not ready:
+                return None
+            chunk = os.read(fd, count - len(data))
+            if not chunk:
+                return None
+            data += chunk
+        return data
+
+    header = read_exact(4)
+    if header is None:
+        return None
+    (length,) = struct.unpack("<I", header)
+    body = read_exact(length)
+    return json.loads(body) if body is not None else None
+
+
+def sites_push_works():
+    env = dict(os.environ, PANDA_ASSUME_APP_RUNNING="1", PANDA_VERBOSE="1")
+    proc = subprocess.Popen([HOST], stdin=subprocess.PIPE, stdout=subprocess.PIPE, env=env, bufsize=0)
+    try:
+        data = json.dumps({"type": "hello"}).encode()
+        proc.stdin.write(struct.pack("<I", len(data)) + data)
+        proc.stdin.flush()
+        hello = read_frame(proc, 5)
+        if not hello or hello.get("hosts") != []:
+            print(f"       unexpected hello: {hello}")
+            return False
+        write_settings(custom=["reddit.com", "x.com/home"])
+        pushed = read_frame(proc, 6)
+        if not pushed or pushed.get("type") != "sites" or pushed.get("hosts") != ["reddit.com", "x.com"]:
+            print(f"       unexpected push: {pushed}")
+            return False
+        return True
+    finally:
+        proc.stdin.close()
+        proc.wait(timeout=10)
+
+
 def write_settings(**overrides):
     settings = {
         "master": True, "instagram": True, "youtube": True, "shorts": True,
-        "allowNormalVideos": True, "closeDelayMs": 0,
+        "allowNormalVideos": True, "closeDelayMs": 0, "customOn": True, "custom": [],
     }
     settings.update(overrides)
     os.makedirs(SUPPORT, exist_ok=True)
-    with open(SETTINGS, "w") as handle:
+    # Written the way the app writes it: to a temporary file, then moved into place.
+    with open(SETTINGS + ".tmp", "w") as handle:
         json.dump(settings, handle)
+    os.replace(SETTINGS + ".tmp", SETTINGS)
 
 
 def verdict(url, assume_running=True):
@@ -129,6 +178,31 @@ def main():
         expect("not allowed + youtube off", "https://www.youtube.com/watch?v=1", None,
                allowNormalVideos=False, youtube=False)
 
+        expect("blocklist: whole site", "https://www.reddit.com/r/all/", "custom", custom=["reddit.com"])
+        expect("blocklist: subdomain", "https://old.reddit.com/", "custom", custom=["reddit.com"])
+        expect("blocklist: look-alike", "https://notreddit.com/", None, custom=["reddit.com"])
+        expect("blocklist switched off", "https://www.reddit.com/", None, custom=["reddit.com"], customOn=False)
+        expect("blocklist, master off", "https://www.reddit.com/", None, custom=["reddit.com"], master=False)
+        expect("blocklist: one channel", "https://www.youtube.com/@somechannel/videos", "custom",
+               custom=["youtube.com/@somechannel"])
+        expect("blocklist: similar channel", "https://www.youtube.com/@somechannelx", None,
+               custom=["youtube.com/@somechannel"])
+        expect("blocklist: other videos fine", "https://www.youtube.com/watch?v=1", None,
+               custom=["youtube.com/@somechannel"])
+        expect("blocklist: one video", "https://www.youtube.com/watch?v=abc123&t=10", "custom",
+               custom=["youtube.com/watch?v=abc123"])
+        expect("blocklist: a different video", "https://www.youtube.com/watch?v=zzz", None,
+               custom=["youtube.com/watch?v=abc123"])
+        expect("blocklist beats a toggle", "https://www.instagram.com/", "custom",
+               custom=["instagram.com"], instagram=False)
+
+        # The extension is told about blocklist changes while the browser is running.
+        write_settings(custom=[])
+        ok = sites_push_works()
+        if not ok:
+            failures.append("host did not push the new blocklist to the extension")
+        print(f"  {'ok  ' if ok else 'FAIL'} blocklist change pushed to the extension")
+
         write_settings(closeDelayMs=550)
         reply = verdict("https://www.instagram.com/")
         if reply.get("delayMs") != 550:
@@ -185,10 +259,10 @@ def main():
                 print(f"  {'ok  ' if ok else 'FAIL'} app counted an Instagram tab: {counted}")
 
                 # The awkward case: the browser quits the instant after closing the tab.
-                talk([{"type": "closed", "kind": "shorts"}], assume_running=False)
+                talk([{"type": "closed", "kind": "shorts"}, {"type": "closed", "kind": "custom"}], assume_running=False)
                 time.sleep(3)
                 counted = counted_today()
-                ok = counted.get("shorts") == 1
+                ok = counted.get("shorts") == 1 and counted.get("custom") == 1
                 if not ok:
                     failures.append(f"app did not count a tab closed just before the host exited: {counted}")
                 print(f"  {'ok  ' if ok else 'FAIL'} app counted a Short closed as the browser quit: {counted}")

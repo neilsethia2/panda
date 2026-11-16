@@ -7,6 +7,7 @@ const src = fs.readFileSync(process.argv[2], 'utf8');
 function makeEvent() { const ls = []; return { addListener: (f) => ls.push(f), fire: (...a) => ls.forEach((f) => f(...a)) }; }
 
 function makeWorld(settings) {
+  settings.custom = settings.custom || [];
   const tabs = new Map();
   const removed = [], created = [], hostMessages = [];
   const portListeners = [];
@@ -17,6 +18,8 @@ function makeWorld(settings) {
       if (u.pathname === '/shorts' || u.pathname.startsWith('/shorts/')) return settings.shorts ? 'shorts' : null;
       return null;
     }
+    const bare = h.replace(/^www\./, '');
+    if (settings.custom.some((c) => bare === c || bare.endsWith('.' + c))) return 'custom';
     return null;
   }
   const port = {
@@ -24,7 +27,7 @@ function makeWorld(settings) {
     onDisconnect: { addListener: () => {} },
     postMessage(m) {
       hostMessages.push(m);
-      if (m.type === 'hello') setTimeout(() => portListeners.forEach((f) => f({ type: 'hello', appRunning: true })), 1);
+      if (m.type === 'hello') setTimeout(() => portListeners.forEach((f) => f({ type: 'hello', appRunning: true, hosts: settings.custom.slice() })), 1);
       if (m.type === 'check') {
         const kind = classify(m.url);
         setTimeout(() => portListeners.forEach((f) => f({ type: 'verdict', id: m.id, block: !!kind, kind: kind || '', delayMs: kind ? settings.delay : 0 })), 2);
@@ -44,7 +47,8 @@ function makeWorld(settings) {
     webNavigation: { onHistoryStateUpdated: makeEvent(), onCommitted: makeEvent() },
   };
   vm.runInNewContext(src, { chrome, URL, setTimeout, clearTimeout, console, Promise, Map, Set });
-  return { chrome, tabs, removed, created, hostMessages };
+  const pushSites = (hosts) => { settings.custom = hosts; portListeners.forEach((f) => f({ type: 'sites', hosts })); };
+  return { chrome, tabs, removed, created, hostMessages, pushSites };
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let failed = 0;
@@ -118,6 +122,31 @@ function check(name, cond, extra = '') { console.log(`  ${cond ? 'ok  ' : 'FAIL'
   w.chrome.tabs.onUpdated.fire(3, { url: 'https://en.wikipedia.org/wiki/Giant_panda' }, w.tabs.get(3));
   await sleep(50);
   check('ordinary sites are never sent to the app', w.hostMessages.filter((m) => m.type === 'check').length === before);
+
+  // Your own blocklist
+  w = makeWorld({ instagram: true, shorts: true, delay: 0, custom: ['reddit.com'] });
+  w.tabs.set(1, { id: 1, windowId: 1, index: 0, url: 'https://example.com/' });
+  w.tabs.set(2, { id: 2, windowId: 1, index: 1, url: 'https://www.reddit.com/r/all/' });
+  w.chrome.tabs.onUpdated.fire(2, { url: 'https://www.reddit.com/r/all/' }, w.tabs.get(2));
+  await sleep(120);
+  check('site from the blocklist closed', w.removed.includes(2));
+  check('counted as a custom site', w.hostMessages.some((m) => m.type === 'closed' && m.kind === 'custom'));
+
+  w.tabs.set(3, { id: 3, windowId: 1, index: 1, url: 'https://news.ycombinator.com/' });
+  w.chrome.tabs.onUpdated.fire(3, { url: 'https://news.ycombinator.com/' }, w.tabs.get(3));
+  await sleep(80);
+  check('site not on the list left alone', w.tabs.has(3));
+
+  w.pushSites(['reddit.com', 'ycombinator.com']);
+  w.chrome.tabs.onUpdated.fire(3, { url: 'https://news.ycombinator.com/' }, w.tabs.get(3));
+  await sleep(120);
+  check('site added while the browser is running closed', w.removed.includes(3));
+
+  w.pushSites([]);
+  w.tabs.set(4, { id: 4, windowId: 1, index: 1, url: 'https://old.reddit.com/' });
+  w.chrome.tabs.onUpdated.fire(4, { url: 'https://old.reddit.com/' }, w.tabs.get(4));
+  await sleep(80);
+  check('site removed from the list is allowed again', w.tabs.has(4));
 
   console.log(failed ? `\n${failed} FAILED` : '\nAll extension checks passed.');
   process.exit(failed ? 1 : 0);
