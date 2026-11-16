@@ -147,7 +147,7 @@ struct PopoverView: View {
                         .font(Theme.body(12.5, weight: .medium))
                         .foregroundColor(Theme.ink)
                     Text(today.custom > 0
-                         ? "\(today.instagram) Instagram  ·  \(today.shorts + today.youtube) YouTube  ·  \(today.custom) your list"
+                         ? "\(today.instagram) Instagram  ·  \(today.shorts + today.youtube) YouTube  ·  \(today.custom) other"
                          : "\(today.instagram) Instagram  ·  \(today.shorts + today.youtube) YouTube")
                         .font(Theme.body(11.5))
                         .foregroundColor(Theme.muted)

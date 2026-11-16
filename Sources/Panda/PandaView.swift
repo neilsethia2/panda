@@ -129,39 +129,47 @@ struct PandaCanvas: View {
             // Feet: one swings forward and lifts while the other pushes back.
             let leftLift = running ? 5.5 * max(0, s) : 0
             let rightLift = running ? 5.5 * max(0, -s) : 0
-            ctx.fill(PandaCanvas.ellipse(35 + 6 * c, 90 - leftLift, 21, 13), with: ink)
-            ctx.fill(PandaCanvas.ellipse(65 - 6 * c, 90 - rightLift, 21, 13), with: ink)
+            let leftFoot = PandaCanvas.ellipse(35 + 6 * c, 90 - leftLift, 21, 13)
+            let rightFoot = PandaCanvas.ellipse(65 - 6 * c, 90 - rightLift, 21, 13)
 
-            // Body
             let body = PandaCanvas.ellipse(50, 76 + bob, 52, 38)
-            ctx.fill(body, with: white)
-            ctx.stroke(body, with: ink, lineWidth: outline)
-            ctx.fill(PandaCanvas.ellipse(50, 80 + bob, 26, 20), with: belly)
 
             // Arms: pump opposite to the feet while running.
             let armsUp = mood == .celebrating
             let rightUp = mood == .celebrating || mood == .proud
-            if armsUp {
-                ctx.fill(PandaCanvas.capsule(cx: 21, cy: 58 + bob, w: 12, h: 25, angle: -0.75), with: ink)
-            } else {
-                ctx.fill(PandaCanvas.capsule(cx: 27 - 3.5 * s, cy: 75 + bob, w: 12, h: 24, angle: 0.32 + 0.55 * s), with: ink)
-            }
-            if rightUp {
-                ctx.fill(PandaCanvas.capsule(cx: 79, cy: 58 + bob, w: 12, h: 25, angle: 0.75), with: ink)
-            } else {
-                ctx.fill(PandaCanvas.capsule(cx: 73 - 3.5 * s, cy: 75 + bob, w: 12, h: 24, angle: -0.32 + 0.55 * s), with: ink)
-            }
+            let leftArm = armsUp
+                ? PandaCanvas.capsule(cx: 21, cy: 58 + bob, w: 12, h: 25, angle: -0.75)
+                : PandaCanvas.capsule(cx: 27 - 3.5 * s, cy: 75 + bob, w: 12, h: 24, angle: 0.32 + 0.55 * s)
+            let rightArm = rightUp
+                ? PandaCanvas.capsule(cx: 79, cy: 58 + bob, w: 12, h: 25, angle: 0.75)
+                : PandaCanvas.capsule(cx: 73 - 3.5 * s, cy: 75 + bob, w: 12, h: 24, angle: -0.32 + 0.55 * s)
 
             // Everything from here up rides on the head.
             let hy = headBob
             let hx: CGFloat = running ? 1.2 * c : 0
-
-            // Ears
-            ctx.fill(PandaCanvas.ellipse(25 + hx, 19 + hy, 25, 25), with: ink)
-            ctx.fill(PandaCanvas.ellipse(75 + hx, 19 + hy, 25, 25), with: ink)
-
-            // Head
+            let leftEar = PandaCanvas.ellipse(25 + hx, 19 + hy, 25, 25)
+            let rightEar = PandaCanvas.ellipse(75 + hx, 19 + hy, 25, 25)
             let head = PandaCanvas.ellipse(50 + hx, 43 + hy, 78, 66)
+
+            // A white edge behind the whole figure, like a sticker, so his black ears and
+            // limbs do not vanish over a dark tab bar or a dark theme.
+            for part in [leftFoot, rightFoot, leftArm, rightArm, leftEar, rightEar, body, head] {
+                ctx.stroke(part, with: white, lineWidth: 5)
+            }
+
+            ctx.fill(leftFoot, with: ink)
+            ctx.fill(rightFoot, with: ink)
+
+            ctx.fill(body, with: white)
+            ctx.stroke(body, with: ink, lineWidth: outline)
+            ctx.fill(PandaCanvas.ellipse(50, 80 + bob, 26, 20), with: belly)
+
+            ctx.fill(leftArm, with: ink)
+            ctx.fill(rightArm, with: ink)
+
+            ctx.fill(leftEar, with: ink)
+            ctx.fill(rightEar, with: ink)
+
             ctx.fill(head, with: white)
             ctx.stroke(head, with: ink, lineWidth: outline)
 

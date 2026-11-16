@@ -148,21 +148,19 @@ enum PreviewRenderer {
         ) else { return nil }
         context.setFillColor(CGColor(gray: 0.93, alpha: 1))
         context.fill(CGRect(x: 0, y: 0, width: side, height: side))
-        // Body
-        context.setFillColor(CGColor(red: 0.95, green: 0.55, blue: 0.10, alpha: 1))
-        context.fillEllipse(in: CGRect(x: 120, y: 110, width: 280, height: 250))
-        // Beak
-        context.move(to: CGPoint(x: 385, y: 250))
-        context.addLine(to: CGPoint(x: 470, y: 225))
-        context.addLine(to: CGPoint(x: 385, y: 200))
-        context.closePath()
-        context.fillPath()
-        // Feet
-        context.fillEllipse(in: CGRect(x: 180, y: 80, width: 70, height: 46))
-        context.fillEllipse(in: CGRect(x: 280, y: 80, width: 70, height: 46))
-        // Eye
+        // A plain robot: square head, antenna, two legs.
+        context.setFillColor(CGColor(red: 0.20, green: 0.45, blue: 0.75, alpha: 1))
+        context.fill(CGRect(x: 150, y: 140, width: 212, height: 190))
+        context.fill(CGRect(x: 246, y: 330, width: 20, height: 60))
+        context.fillEllipse(in: CGRect(x: 232, y: 380, width: 48, height: 48))
+        context.fill(CGRect(x: 180, y: 80, width: 50, height: 60))
+        context.fill(CGRect(x: 282, y: 80, width: 50, height: 60))
+        context.setFillColor(CGColor(gray: 0.97, alpha: 1))
+        context.fillEllipse(in: CGRect(x: 190, y: 230, width: 46, height: 46))
+        context.fillEllipse(in: CGRect(x: 276, y: 230, width: 46, height: 46))
         context.setFillColor(CGColor(gray: 0.08, alpha: 1))
-        context.fillEllipse(in: CGRect(x: 320, y: 265, width: 26, height: 26))
+        context.fillEllipse(in: CGRect(x: 208, y: 244, width: 20, height: 20))
+        context.fillEllipse(in: CGRect(x: 294, y: 244, width: 20, height: 20))
         return context.makeImage()
     }
 
